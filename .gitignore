@@ -1,6 +1,8 @@
 tools/
 .git_old/
 data/
+models/
+research/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
