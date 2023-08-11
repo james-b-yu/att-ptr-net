@@ -261,3 +261,6 @@ class ConstituentTree:
             for child in self.constituents[root_node].children:
                 yield from self.get_post_order_traversal(child)
             yield root_node
+
+    def get_num_words(self):
+        return len(self.terminals)
