@@ -94,10 +94,21 @@ class ConstituentTree:
             print(f"Warning: {len(children_matching_edge)} candidate edges exist")
 
         if not pos_list: # if pos_list is empty, then we don't care about the POS of the head
-            yield [v for c in children_matching_edge for v in self.constituents[c].yld]
+            head_candidates: list[int] = []
+            for c in map(lambda v : self.constituents[v].head, children_matching_edge):
+                assert c is not None, "Head candidate of child must have already been assigned a head"
+                head_candidates.append(c)
+
+            yield head_candidates
         
         for pos in pos_list:
-            yield [v for c in children_matching_edge for v in self.constituents[c].yld if self.constituents[v].sym == pos]
+            head_candidates: list[int] = []
+            for c in map(lambda v : self.constituents[v].head, children_matching_edge):
+                assert c is not None, "Head candidate of child must have already been assigned a head"
+                if self.constituents[c].sym == pos:
+                    head_candidates.append(c)
+            
+            yield head_candidates
 
     def _find_head(self, idx: int) -> int | None:
         assert idx in self.constituents, f"Constituent '{idx}' does not exist"
@@ -161,7 +172,6 @@ class ConstituentTree:
             assert nt_id is not None
 
             nt_sym = nt.attrib["cat"]
-            nt_head = None # default to None
 
             nt_children: list[tuple[str, int]] = [] # list of tuple[edge_label, child_id]
 
@@ -173,8 +183,6 @@ class ConstituentTree:
                 assert edge_id_ref in self.constituents
 
                 nt_children.append((edge_label, edge_id_ref))
-                if edge.attrib["label"] == "HD":
-                    nt_head = edge_id_ref
 
                 # add edge label and parent id to child constituent
                 assert self.constituents[edge_id_ref].parent is None, f"Constituent '{edge_id_ref}' already has a parent"
@@ -189,7 +197,7 @@ class ConstituentTree:
                 nt_id: Constituent(
                     id=nt_id,
                     sym=nt_sym,
-                    head=nt_head,
+                    head=None,
                     is_pre_terminal=False,
                     yld=set.union(*nt_children_ylds),
                     children=[c_id for _, c_id in nt_children]
@@ -205,6 +213,7 @@ class ConstituentTree:
         assert self.constituents[self.root].yld == set(range(1, len(self.terminals) + 1)), f"Root constituent must yield entire sentence"
 
         # attempt to find heads for all phrases that do not have a head already defined by the markup
+        self.has_empty_verb_constituents = False
         empty_constituent_generator = self._create_next_empty_constituent()
         constituents_without_heads = [c for c in self.constituents.values() if c.head is None]
         for c in constituents_without_heads:
@@ -215,12 +224,11 @@ class ConstituentTree:
                 if c.head is None and c.sym in CONSTS["verb_phrase_reattach_symbols"]:
                     c.head = next(empty_constituent_generator)
                     assert self.constituents[c.head].is_empty
-
-                print(f"Found head word {c.head} for constituent {c.id}")
-            else: # vroots have special treatment: copy the head from the first S; if no S, then copy from the first VP
-                constituent_candidates = [*[cld for cld in c.children if self.constituents[cld].sym == CONSTS["s_symbol"]], *[cld for cld in c.children if self.constituents[cld].sym == CONSTS["vp_symbol"]]]
-                if constituent_candidates:
-                    c.head =self.constituents[constituent_candidates[0]].head
+                    self.has_empty_verb_constituents = True
+            else: # vroots have special treatment: copy the head from the unique non-terminal child
+                head_candidates = [self.constituents[cld].head for cld in c.children if not self.constituents[cld].is_pre_terminal]
+                assert len(head_candidates) == 1, "vroot must have exactly one non-terminal child"
+                c.head = head_candidates[0]
 
         # check to see if unary or not
         self.has_unary = False
@@ -228,7 +236,8 @@ class ConstituentTree:
             if c.is_unary:
                 self.has_unary = True
 
-    
+        self.check_constituent_rules()
+
     def check_constituent_rules(self):
         # check to see if constituent rules are satisfied
         for c in self.constituents.values():
@@ -236,5 +245,19 @@ class ConstituentTree:
                 assert is_pairwise_disjoint(*map(lambda cld: self.constituents[cld].yld, c.children)), f"Children of constituent '{c.id}' must be pairwise disjoint"
                 assert c.yld == set.union(*map(lambda cld: self.constituents[cld].yld, c.children)), f"Yield of constituent '{c.id}' must be equal to union of children yields"
 
-                children_with_same_head = [cld for cld in c.children if self.constituents[cld].head == c.head]
-                assert len(children_with_same_head) == 1, f"Exactly one child of constituent '{c.id}' must have the same head as the constituent. Instead, found children {children_with_same_head}"
+                assert c.head is not None, f"Constituent {c} must have a head"
+
+                if not self.constituents[c.head].is_empty:
+                    children_with_same_head = [cld for cld in c.children if self.constituents[cld].head == c.head]
+                    assert len(children_with_same_head) == 1, f"Exactly one child of constituent '{c.id}' must have the same head as the constituent. Instead, found children {children_with_same_head}"
+
+    def get_post_order_traversal(self, root_node: int | None = None):
+        if root_node is None:
+            root_node = self.root
+        assert root_node in self.constituents
+        if self.constituents[root_node].is_pre_terminal:
+            yield root_node
+        else:
+            for child in self.constituents[root_node].children:
+                yield from self.get_post_order_traversal(child)
+            yield root_node
