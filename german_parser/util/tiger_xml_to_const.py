@@ -32,7 +32,7 @@ class Constituent(BaseModel):
     edge_label: str | None = Field(default=None) # the label for the edge from this constituent to its parent
     parent: int | None = Field(default=None) # the id of the parent node
 
-    is_pre_terminal: bool = False
+    is_pre_terminal: bool = Field(default=False)
     children: list[int] = Field(defualt=[])
 
     @root_validator()
