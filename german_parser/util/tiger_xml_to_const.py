@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, root_validator
 import xml.etree.ElementTree as ET
 
 from const import CONSTS
-from util import get_int_after_underscore, get_str_after_underscore, is_pairwise_disjoint
+from util import get_int_after_underscore, get_str_after_underscore, is_pairwise_disjoint, str_to_newick_str
 
 class Terminal(BaseModel):
     word: str = Field()
@@ -307,7 +307,18 @@ class ConstituentTree(BaseModel):
     def get_num_words(self):
         return len(self.terminals)
 
+    def _get_newick(self, id: int):
+        if self.constituents[id].is_pre_terminal:
+            return f"{str_to_newick_str(str(id) + '.' + self.constituents[id].sym)}"
 
+        res = "("
+        res += ",".join([self._get_newick(c) for c in self.constituents[id].children])
+        res += f"){str_to_newick_str(self.constituents[id].sym)}"
+
+        return res
+    
+    def get_newick(self):
+        return self._get_newick(self.root) + ";"
 
 class Dependency(BaseModel):
     head: int # child

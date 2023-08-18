@@ -90,3 +90,4 @@ wcwidth
 widgetsnbextension==4.0.8
 yarg==0.1.9
 zipp
+toytree==2.0.5
