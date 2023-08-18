@@ -1,4 +1,4 @@
-from tiger_xml_to_const import ConstituentTree, Constituent
+from tiger_xml_to_const import ConstituentTree, Constituent, Terminal
 from pydantic import BaseModel, Field, root_validator
 
 class Dependency(BaseModel):
@@ -7,12 +7,17 @@ class Dependency(BaseModel):
     sym: str = Field(..., regex=r"^[A-Z]+$")
 
 
-class DependencyTree:
-    def __init__(self, c_tree: ConstituentTree):
-        self.num_words = c_tree.get_num_words()
-        self.modifiers: dict[int, dict[int, list[Dependency]]] = {}
+class DependencyTree(BaseModel):
+    modifiers: dict[int, dict[int, list[Dependency]]]
+    terminals: dict[int, Terminal]
+    num_words: int
 
-        attachment_order_map: dict[int, int] = {h: 1 for h in range(1, self.num_words + 1)}
+    @classmethod
+    def from_c_tree(cls, c_tree: ConstituentTree):
+        num_words = c_tree.get_num_words() # PROP
+        modifiers: dict[int, dict[int, list[Dependency]]] = {} # PROP
+
+        attachment_order_map: dict[int, int] = {h: 1 for h in range(1, num_words + 1)}
 
         for v in c_tree.get_post_order_traversal():
             z = c_tree.constituents[v].sym
@@ -25,13 +30,19 @@ class DependencyTree:
                 m = c_tree.constituents[u].head
                 assert m is not None
                 if m != h:
-                    if h not in self.modifiers:
-                        self.modifiers[h] = {}
-                    if j not in self.modifiers[h]:
-                        self.modifiers[h][j] = []
-                    self.modifiers[h][j].append(Dependency(head=h, modifier=m, sym=z))
+                    if h not in modifiers:
+                        modifiers[h] = {}
+                    if j not in modifiers[h]:
+                        modifiers[h][j] = []
+                    modifiers[h][j].append(Dependency(head=h, modifier=m, sym=z))
             
             attachment_order_map[h] += 1
+
+        return cls(
+            modifiers=modifiers,
+            terminals=c_tree.terminals,
+            num_words=num_words
+        )       
     
     def get_arcs(self):
         return [a for v in self.modifiers.values() for m in v.values() for a in m]
@@ -58,7 +69,6 @@ class DependencyTree:
 
         return root_set.pop()
     
-
     def get_tree_map(self):
         tree_map: dict[int, set[int]] = {}
 
@@ -74,7 +84,6 @@ class DependencyTree:
 
         return tree_map
     
-
     def _get_post_order_traversal(self, tree_map: dict[int, set[int]], root: int):
         if root not in tree_map or not tree_map[root]:
             yield root
@@ -88,32 +97,43 @@ class DependencyTree:
         yield from self._get_post_order_traversal(self.get_tree_map(), self.get_root())
 
 def d_to_c(d: DependencyTree):
-    id_to_constituent: dict[int, Constituent] = {}
+    """
+    Creates a constituent tree without unaries and without empty verbs
+    """
+
+    used_ids: set[int] = set()
+    definitely_not_root: set[int] = set() # set of ids of constituents which have been added as children
+    is_discontinuous = False
+
+    constituents: dict[int, Constituent] = {} # id |-> constituent
     phi: dict[int, int] = {} # h |-> id of v
 
-    res: list[Constituent] = []
-
-    def counter():
-        the_id = 0
+    def counter(start: int):
+        the_id = start
         while True:
             the_id += 1
             yield the_id
 
-    id_generator = counter()
+    non_pre_terminal_id_generator = counter(1000000)
 
     for h in d.get_post_order_traversal():
         # create pre-terminals
-        v_id = next(id_generator)
+        v_id = h
+        assert v_id not in used_ids, "Ran out of ids to use!"
+        used_ids.add(v_id)
+        definitely_not_root.add(v_id)
+
         v = Constituent(
             id=v_id,
             head=h,
             yld=set([h]),
-            sym="<POS>",
-            pre_terminal=True,
-            children=[]
+            sym=d.terminals[h].get_sym(),
+            is_pre_terminal=True,
+            children=[h]
             )
-        id_to_constituent[v_id] = v
-        # set phi[h] to be the corresponding preterminal
+        constituents[v_id] = v
+
+        # set phi[h] to be the corresponding pre-terminal
         phi[h] = v_id
 
         # create sorted list of modifiers by priority order
@@ -132,17 +152,49 @@ def d_to_c(d: DependencyTree):
 
             # create new constituent with yield as the union of phi[h] and phi[m] yields
             new_children = [phi[h], *[phi[m.modifier] for m in Mh[j]]]
-            new_id = next(id_generator)
-            new_yld = set.union(*[id_to_constituent[c].yld for c in new_children])
+            new_id = next(non_pre_terminal_id_generator)
+            assert new_id not in used_ids
+            used_ids.add(new_id)
+            definitely_not_root.update(new_children)
+            new_yld = set.union(*[constituents[c].yld for c in new_children])
             new_v = Constituent(
                 id=new_id,
                 head=h,
                 yld=new_yld,
                 sym=new_Z,
-                children=new_children
+                children=new_children,
+                is_pre_terminal=False
             )
-            id_to_constituent[new_id] = new_v
-
-            res.append(new_v)
+            constituents[new_id] = new_v
             phi[h] = new_id
+
+            # set parent of children to be new constituent
+            for c in new_children:
+                constituents[c].parent = new_id
+
+            # detect discontinuities
+            new_yld_min = min(new_yld)
+            new_yld_max = max(new_yld)
+            if not is_discontinuous:
+                for i in range(new_yld_min, new_yld_max):
+                    if (i != new_yld_min) and (i != new_yld_max) and (i not in new_yld):
+                        is_discontinuous = True
+                        break
+
+    root_candidates = constituents.keys() - definitely_not_root
+    assert len(root_candidates) == 1, f"Found multiple possible roots"
+
+
+    root = root_candidates.pop()
+    has_empty_verb_constituents = False # TODO: add better handling
+    res = ConstituentTree(
+        terminals=d.terminals,
+        constituents=constituents,
+        root=root,
+        is_discontinuous=is_discontinuous,
+        has_empty_verb_constituents=has_empty_verb_constituents,
+        has_unary=False
+    )
+    res._check_constituent_rules()
+
     return res

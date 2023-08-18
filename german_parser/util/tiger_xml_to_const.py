@@ -21,6 +21,14 @@ class Terminal(BaseModel):
     idx: int = Field()
 
 
+    def get_sym(self):
+        """Return POS and other information about this terminal as a string
+
+        Returns:
+            str: POS and other information about this terminal as a string
+        """
+        return self.pos
+
 
 
 class Constituent(BaseModel):
@@ -57,23 +65,32 @@ class Constituent(BaseModel):
         # empty constituents are defined as having the following properties. they are used to make "phantom" vp nodes when the verb is missing
         return self.id < 0 and self.sym == "<EMPTY>" and self.head is None and self.is_pre_terminal and len(self.yld) == 0 and not self.children
 
-class ConstituentTree:
-    def _integize(self):
+class ConstituentTree(BaseModel):
+    terminals: dict[int, Terminal]
+    constituents: dict[int, Constituent]
+    root: int
+    is_discontinuous: bool
+    has_empty_verb_constituents: bool
+    has_unary: bool
+
+    @classmethod
+    def _integize(cls):
         num_integers = 1048576
         while True:
             num_integers += 1
             yield num_integers
 
-    def _create_next_empty_constituent(self):
+    @classmethod
+    def _create_next_empty_constituent(cls, constituents: dict[int, Constituent]):
         """
         Creates an empty constituent and adds this to the sentence's constituent dict, yielding its id. Empty constituent ids are negative integers.
         """
         num_empty_constituents = 0 # counter to keep empty constituent ids unique
         while True:
             num_empty_constituents -= 1
-            assert num_empty_constituents not in self.constituents, f"Empty constituent id '{num_empty_constituents}' already exists"
+            assert num_empty_constituents not in constituents, f"Empty constituent id '{num_empty_constituents}' already exists"
 
-            self.constituents.update({
+            constituents.update({
                 num_empty_constituents: Constituent(
                     id=num_empty_constituents,
                     sym="<EMPTY>",
@@ -86,16 +103,17 @@ class ConstituentTree:
 
             yield num_empty_constituents
 
-    def _find_head_candidates(self, children: list[int], edge_label: str, pos_list: list[str]):
-        children_matching_edge = [c for c in children if self.constituents[c].edge_label == edge_label]
-        assert set([v for c in children_matching_edge for v in self.constituents[c].yld]).issubset(set(self.terminals.keys())), "Head candidates must be terminals"
+    @classmethod
+    def _find_head_candidates(cls, children: list[int], edge_label: str, pos_list: list[str], constituents: dict[int, Constituent], terminals: dict[int, Terminal]):
+        children_matching_edge = [c for c in children if constituents[c].edge_label == edge_label]
+        assert set([v for c in children_matching_edge for v in constituents[c].yld]).issubset(set(terminals.keys())), "Head candidates must be terminals"
 
         if len(children_matching_edge) > 1:
             print(f"Warning: {len(children_matching_edge)} candidate edges exist")
 
         if not pos_list: # if pos_list is empty, then we don't care about the POS of the head
             head_candidates: list[int] = []
-            for c in map(lambda v : self.constituents[v].head, children_matching_edge):
+            for c in map(lambda v : constituents[v].head, children_matching_edge):
                 assert c is not None, "Head candidate of child must have already been assigned a head"
                 head_candidates.append(c)
 
@@ -103,20 +121,21 @@ class ConstituentTree:
         
         for pos in pos_list:
             head_candidates: list[int] = []
-            for c in map(lambda v : self.constituents[v].head, children_matching_edge):
+            for c in map(lambda v : constituents[v].head, children_matching_edge):
                 assert c is not None, "Head candidate of child must have already been assigned a head"
-                if self.constituents[c].sym == pos:
+                if constituents[c].sym == pos:
                     head_candidates.append(c)
             
             yield head_candidates
 
-    def _find_head(self, idx: int) -> int | None:
-        assert idx in self.constituents, f"Constituent '{idx}' does not exist"
-        assert self.constituents[idx].sym in CONSTS["head_rules"], f"Constituent symbol '{self.constituents[idx].sym}' has no head rules"
+    @classmethod
+    def _find_head(cls, idx: int, constituents: dict[int, Constituent], terminals: dict[int, Terminal]) -> int | None:
+        assert idx in constituents, f"Constituent '{idx}' does not exist"
+        assert constituents[idx].sym in CONSTS["head_rules"], f"Constituent symbol '{constituents[idx].sym}' has no head rules"
 
         for rule in CONSTS["head_rules"].values():
             for dir, label, pos_list in rule:
-                for head_candidates in self._find_head_candidates(self.constituents[idx].children, label, pos_list):
+                for head_candidates in cls._find_head_candidates(constituents[idx].children, label, pos_list, constituents, terminals):
                     if dir == 's' and head_candidates:
                         assert len(head_candidates) == 1, "'s' direction requires unique head candidate"
                         return head_candidates[0]
@@ -127,46 +146,46 @@ class ConstituentTree:
                     
         return None
 
-    def __init__(self, tree_element: ET.Element):
+    @classmethod
+    def from_tiger_xml(cls, tree_element: ET.Element):
         # find elements in xml tree
-        self.tree_graph = tree_element.find("graph")
-        self.tree_graph_root_name = get_str_after_underscore(self.tree_graph.attrib["root"])
-        self.tree_terminals = self.tree_graph.find("terminals")
-        self.tree_nonterminals = self.tree_graph.find("nonterminals")
+        tree_graph = tree_element.find("graph")
+        tree_graph_root_name = get_str_after_underscore(tree_graph.attrib["root"])
+        tree_terminals = tree_graph.find("terminals")
+        tree_nonterminals = tree_graph.find("nonterminals")
 
-        self.is_discontinuous = ("discontinuous" in self.tree_graph.attrib) and (self.tree_graph.attrib["discontinuous"] == "true")
+        is_discontinuous = ("discontinuous" in tree_graph.attrib) and (tree_graph.attrib["discontinuous"] == "true") # PROP
 
-        self.terminals: dict[int, Terminal] = {} # use dict for 1-based indexing
-        self.constituents: dict[int, Constituent] = {}
+        terminals: dict[int, Terminal] = {} # use dict for 1-based indexing # PROP
+        constituents: dict[int, Constituent] = {} # PROP
 
         # parse terminals
-        for idx, t in enumerate(self.tree_terminals.iter("t")):
+        for idx, t in enumerate(tree_terminals.iter("t")):
             assert idx + 1 == get_int_after_underscore(t.attrib["id"]), f"Terminal index '{idx + 1}' does not match index implied by its id '{t.attrib['id']}'"
             term = Terminal(**t.attrib, idx=idx + 1)
-            self.terminals.update({
+            terminals.update({
                 idx + 1: term
             })
 
         # create pre-terminals from terminals: the pre-terminals are constituents with id equal to the terminal's index within the sentence
-        self.constituents.update({
-                t.idx: Constituent(
+        for t in terminals.values():
+            constituents[t.idx] = Constituent(
                     id=t.idx,
                     head=t.idx,
                     yld={t.idx},
-                    sym=t.pos,
+                    sym=t.get_sym(),
                     is_pre_terminal=True,
                     children=[t.idx]
                 )
-            for t in self.terminals.values()})
         
-        self.integize_generator = self._integize()
+        integize_generator = cls._integize()
         integize_dict: dict[str, int] = {}
 
         # create non-terminal constituents
-        for nt in self.tree_nonterminals.iter("nt"):
+        for nt in tree_nonterminals.iter("nt"):
             nt_id = get_int_after_underscore(nt.attrib["id"])
             if nt_id is None:
-                nt_id = next(self.integize_generator)
+                nt_id = next(integize_generator)
                 assert nt_id not in integize_dict.values()
                 integize_dict[get_str_after_underscore(nt.attrib["id"])] = nt_id
             assert nt_id is not None
@@ -180,21 +199,20 @@ class ConstituentTree:
                 edge_id_ref = get_int_after_underscore(edge.attrib["idref"], integize_dict.get(get_str_after_underscore(edge.attrib["idref"]), None))
                 edge_label = edge.attrib["label"]
                 assert edge_id_ref is not None
-                assert edge_id_ref in self.constituents
+                assert edge_id_ref in constituents
 
                 nt_children.append((edge_label, edge_id_ref))
 
                 # add edge label and parent id to child constituent
-                assert self.constituents[edge_id_ref].parent is None, f"Constituent '{edge_id_ref}' already has a parent"
-                assert self.constituents[edge_id_ref].edge_label is None, f"Constituent '{edge_id_ref}' already has an edge label"
-                self.constituents[edge_id_ref].parent = nt_id
-                self.constituents[edge_id_ref].edge_label = edge_label
+                assert constituents[edge_id_ref].parent is None, f"Constituent '{edge_id_ref}' already has a parent"
+                assert constituents[edge_id_ref].edge_label is None, f"Constituent '{edge_id_ref}' already has an edge label"
+                constituents[edge_id_ref].parent = nt_id
+                constituents[edge_id_ref].edge_label = edge_label
 
-            nt_children_ylds = [self.constituents[c_id].yld for _, c_id in nt_children]
+            nt_children_ylds = [constituents[c_id].yld for _, c_id in nt_children]
             assert is_pairwise_disjoint(*nt_children_ylds), "Yields of children nodes must be pairwise disjoint"
 
-            self.constituents.update({
-                nt_id: Constituent(
+            constituents[nt_id] = Constituent(
                     id=nt_id,
                     sym=nt_sym,
                     head=None,
@@ -202,43 +220,67 @@ class ConstituentTree:
                     yld=set.union(*nt_children_ylds),
                     children=[c_id for _, c_id in nt_children]
                 )
-            })
         
         # find root
+        root = None # PROP
         try:
-            self.root = int(self.tree_graph_root_name)
+            root = int(tree_graph_root_name) 
         except Exception:
-            self.root = integize_dict[self.tree_graph_root_name]
+            root = integize_dict[tree_graph_root_name]
     
-        assert self.constituents[self.root].yld == set(range(1, len(self.terminals) + 1)), f"Root constituent must yield entire sentence"
+        assert constituents[root].yld == set(range(1, len(terminals) + 1)), f"Root constituent must yield entire sentence"
 
         # attempt to find heads for all phrases that do not have a head already defined by the markup
-        self.has_empty_verb_constituents = False
-        empty_constituent_generator = self._create_next_empty_constituent()
-        constituents_without_heads = [c for c in self.constituents.values() if c.head is None]
+        has_empty_verb_constituents = False # PROP
+        empty_constituent_generator = cls._create_next_empty_constituent(constituents)
+        constituents_without_heads = [c for c in constituents.values() if c.head is None]
         for c in constituents_without_heads:
             if c.sym != CONSTS["vroot_symbol"]:
-                c.head = self._find_head(c.id)
+                c.head = cls._find_head(c.id, constituents, terminals)
 
                 # reattach VP or S
                 if c.head is None and c.sym in CONSTS["verb_phrase_reattach_symbols"]:
                     c.head = next(empty_constituent_generator)
-                    assert self.constituents[c.head].is_empty
-                    self.has_empty_verb_constituents = True
+                    assert constituents[c.head].is_empty
+                    has_empty_verb_constituents = True
             else: # vroots have special treatment: copy the head from the unique non-terminal child
-                head_candidates = [self.constituents[cld].head for cld in c.children if not self.constituents[cld].is_pre_terminal]
+                head_candidates = [constituents[cld].head for cld in c.children if not constituents[cld].is_pre_terminal]
                 assert len(head_candidates) == 1, "vroot must have exactly one non-terminal child"
                 c.head = head_candidates[0]
 
         # check to see if unary or not
-        self.has_unary = False
-        for c in self.constituents.values():
+        has_unary = False # PROP
+        for c in constituents.values():
             if c.is_unary:
-                self.has_unary = True
+                has_unary = True
 
-        self.check_constituent_rules()
+        res = cls(
+            terminals=terminals,
+            constituents=constituents,
+            root=root,
+            is_discontinuous=is_discontinuous,
+            has_empty_verb_constituents=has_empty_verb_constituents,
+            has_unary=has_unary
+        )
+        res._check_constituent_rules()
 
-    def check_constituent_rules(self):
+        return res
+
+    def _check_constituent_rules(self):
+        for i in range(1, self.get_num_words() + 1):
+            assert i in self.terminals, f"Word {i} not found in terminals dict"
+            assert i in self.constituents, f"Word in position {i} should be in constituents dict"
+
+        for id in self.terminals:
+            assert (self.terminals[id].idx == id), f"Expected id in dict '{id}' to match id of terminal '{self.terminals[id].idx}'"
+        
+        for id in self.constituents:
+            assert (self.constituents[id].id == id), f"Expected id in dict '{id}' to match id of constituent '{self.constituents[id].id}'"
+
+            if self.constituents[id].is_pre_terminal:
+                assert len(self.constituents[id].children) == 1, f"Pre-terminal constituent '{id}' must have exactly one child"
+                assert self.constituents[id].children[0] == id, f"Pre-terminal constituent '{id}' must have itself as a child"
+
         # check to see if constituent rules are satisfied
         for c in self.constituents.values():
             if not c.is_empty:
