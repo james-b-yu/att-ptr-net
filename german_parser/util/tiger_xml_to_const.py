@@ -5,6 +5,8 @@ import xml.etree.ElementTree as ET
 from const import CONSTS
 from util import get_int_after_underscore, get_str_after_underscore, is_pairwise_disjoint, str_to_newick_str
 
+import toytree
+
 class Terminal(BaseModel):
     word: str = Field()
     lemma: str = Field()
@@ -319,6 +321,32 @@ class ConstituentTree(BaseModel):
     
     def get_newick(self):
         return self._get_newick(self.root) + ";"
+    
+    def draw(self):
+        newick = self.get_newick()
+        tree = toytree.tree(newick=newick, tree_format=8, quoted_node_names=True)
+        tip_labels = [self.terminals[int(lab.split(".")[0])].word for lab in tree.get_tip_labels()]
+        sorted_tip_labels = sorted(tree.get_tip_labels(), key=lambda s: -int(s.split('.')[0]))
+        tip_coordinates = tree.get_tip_coordinates()
+        tip_coordinates[:,0] = min(tip_coordinates[:,0])
+        return tree.draw(
+            node_labels=tree.get_node_values("name", show_root=True, show_tips=True),
+            tip_labels=tip_labels,
+            fixed_order=sorted_tip_labels,
+            edge_type='c',
+            edge_style={
+                "stroke": toytree.colors[2],
+                "stroke-width": 2.5,
+                "stroke-opacity": 0.5,
+            },
+            tip_labels_align=True,
+            shrink=True,
+            height=600,
+            width=600,
+            # use_edge_lengths=False,
+            node_sizes=15,
+            # layout="d"
+        )
 
 class Dependency(BaseModel):
     head: int # child
@@ -519,4 +547,4 @@ def d_to_c(cls: type[ConstituentTree], d: DependencyTree):
 
     return res
 
-ConstituentTree.from_d_tree = d_to_c
+ConstituentTree.from_d_tree = d_to_c # for monkey-patching # type: ignore
