@@ -96,15 +96,3 @@ class WordCNN(nn.Module):
         max_out: torch.Tensor = conv_out.max(dim=-1).values # dimensions (N, self.out_embedding_size)
 
         return max_out.reshape(*x.shape, -1)
-    
-    def to(self, *args, **kargs):
-
-        res = super().to(*args, **kargs)
-
-        if "device" in kargs:
-            device = kargs["device"]
-        
-        print(type(args[0]) == torch.device)
-        print("asdfsad")
-
-        return res
