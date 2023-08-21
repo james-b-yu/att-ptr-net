@@ -42,15 +42,15 @@ class WordCNN(nn.Module):
         assert set(word_dict.keys()) == set(range(1, self.num_words + 1)), "Word dictionary (excluding 0 for <UNK>) keys must be a range of integers from 1 to the length of the dictionary"
         self.max_word_length = max([len(v) for v in word_dict.values()])
 
-        self.word_dict = torch.ones(self.num_words + 1, self.max_word_length, dtype=torch.long) # index 0 corresponds to <UNK> but will be unused; fill with ones to indicate padding
-        self.word_lengths = torch.zeros(self.num_words + 1, dtype=torch.long)
+        self.word_dict = nn.Parameter(torch.ones(self.num_words + 1, self.max_word_length, dtype=torch.long), requires_grad=False) # index 0 corresponds to <UNK> but will be unused; fill with ones to indicate padding
+        self.word_lengths = nn.Parameter(torch.zeros(self.num_words + 1, dtype=torch.long), requires_grad=False)
 
         for i, word in word_dict.items(): # iterate word_dict keys (excluding 0)
             self.word_lengths[i] = len(word)
             for j, c in enumerate(word):
                 self.word_dict[i, j] = self.character_set.get(c, 0)
 
-        self.word_lengths_masks = torch.full((self.max_word_length + 1, self.max_word_length), True).triu()[self.word_lengths]
+        self.word_lengths_masks = nn.Parameter(torch.full((self.max_word_length + 1, self.max_word_length), True).triu()[self.word_lengths], requires_grad=False)
 
 
     def forward(self, x: torch.Tensor, new_words_dict: dict[int, str] | None = None):
@@ -67,7 +67,7 @@ class WordCNN(nn.Module):
 
         unknown_words = x < 0
         known_words = x > 0
-        x_words = torch.ones(*x.shape, self.max_word_length, dtype=torch.long)
+        x_words = torch.ones(*x.shape, self.max_word_length, dtype=torch.long, device=x.device)
         x_words[known_words] = self.word_dict[x[known_words]] # dimensions (*S, self.max_word_length)
 
         unknown_words_locs = unknown_words.nonzero(as_tuple=False)
@@ -76,11 +76,11 @@ class WordCNN(nn.Module):
             if loc.numel() == 0:
                 continue
 
-            assert type(new_words_dict) == type({}), "If we have new words, must provide an accompanying dict for the new words"
+            assert type(new_words_dict) == dict, "If we have new words, must provide an accompanying dict for the new words"
             new_word_idx = -x[tuple(loc)]
 
             assert new_word_idx.item() in new_words_dict
-            new_word = new_words_dict[new_word_idx.item()]
+            new_word = new_words_dict[int(new_word_idx.item())]
 
             for j, c in enumerate(new_word):
                 if j < self.max_word_length:
@@ -96,3 +96,15 @@ class WordCNN(nn.Module):
         max_out: torch.Tensor = conv_out.max(dim=-1).values # dimensions (N, self.out_embedding_size)
 
         return max_out.reshape(*x.shape, -1)
+    
+    def to(self, *args, **kargs):
+
+        res = super().to(*args, **kargs)
+
+        if "device" in kargs:
+            device = kargs["device"]
+        
+        print(type(args[0]) == torch.device)
+        print("asdfsad")
+
+        return res
