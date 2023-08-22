@@ -14,6 +14,9 @@ class WordCNN(nn.Module):
         """
         super().__init__()
 
+        char_set = char_set.copy()
+        word_dict = word_dict.copy()
+
         for i in char_set:
             assert len(i) == 1, "Character set must be a list of single characters"
             
@@ -33,7 +36,6 @@ class WordCNN(nn.Module):
         self.conv = nn.Conv1d(in_channels=self.embedding_dim, out_channels=self.num_out_channels, padding_mode="zeros", kernel_size=self.window_size)
 
         # prepare tensor of character codes
-        word_dict = word_dict.copy()
         if 0 in word_dict:
             word_dict.pop(0)
             print("Warning: treating word code 0 as <UNK>")
@@ -53,11 +55,14 @@ class WordCNN(nn.Module):
         self.word_lengths_masks = nn.Parameter(torch.full((self.max_word_length + 1, self.max_word_length), True).triu()[self.word_lengths], requires_grad=False)
 
 
-    def forward(self, x: torch.Tensor, new_words_dict: dict[int, str] | None = None):
+    def forward(self, x: torch.Tensor, new_words_dict: dict[int, str] | None = None) -> torch.Tensor:
         """_summary_
 
         Args:
-            x (torch.Tensor): an input tensor of shape (S), containing keys corresponding to words in self.word_dict. Unknown words are marked with a key of NEGATIVE values where the negative values correspond to (positive) values in a new_words_dict. Note: words longer than self.max_word_length will be truncated from the right
+            x (torch.Tensor): an input tensor of shape S, containing keys corresponding to words in self.word_dict. Unknown words are marked with a key of NEGATIVE values where the negative values correspond to (positive) values in a new_words_dict. If you would not like to provide this dict, you can code unknown words using 0. Note: words longer than self.max_word_length will be truncated from the right
+
+        Returns:
+            torch.Tensor: output tensor of shape (*S, self.out_embedding_size)
         """
         x = torch.as_tensor(x)
 
@@ -95,4 +100,4 @@ class WordCNN(nn.Module):
        
         max_out: torch.Tensor = conv_out.max(dim=-1).values # dimensions (N, self.out_embedding_size)
 
-        return max_out.reshape(*x.shape, -1)
+        return max_out.reshape(*x.shape, -1) # dimensions (*S, self.out_embedding_size)
