@@ -2,8 +2,10 @@ from typing import Any
 from pydantic import BaseModel, Field, root_validator
 import xml.etree.ElementTree as ET
 
-from const import CONSTS
-from util import get_int_after_underscore, get_str_after_underscore, is_pairwise_disjoint, str_to_newick_str
+from .const import CONSTS
+from .util import get_int_after_underscore, get_str_after_underscore, is_pairwise_disjoint, str_to_newick_str
+from .logger import model_logger
+
 
 import toytree
 
@@ -111,7 +113,8 @@ class ConstituentTree(BaseModel):
         assert set([v for c in children_matching_edge for v in constituents[c].yld]).issubset(set(terminals.keys())), "Head candidates must be terminals"
 
         if len(children_matching_edge) > 1:
-            print(f"Warning: {len(children_matching_edge)} candidate edges exist")
+            # model_logger.warning(f"{len(children_matching_edge)} candidate edges exist.") # TODO: check
+            pass
 
         if not pos_list: # if pos_list is empty, then we don't care about the POS of the head
             head_candidates: list[int] = []
@@ -347,6 +350,9 @@ class ConstituentTree(BaseModel):
             node_sizes=15,
             # layout="d"
         )
+    
+    def get_words(self):
+        return [self.terminals[k].word for k in sorted(self.terminals.keys())]
 
 class Dependency(BaseModel):
     head: int # child
@@ -442,6 +448,9 @@ class DependencyTree(BaseModel):
 
     def get_post_order_traversal(self):
         yield from self._get_post_order_traversal(self.get_tree_map(), self.get_root())
+
+    def get_words(self):
+        return [self.terminals[k].word for k in sorted(self.terminals.keys())]
 
 @classmethod
 def d_to_c(cls: type[ConstituentTree], d: DependencyTree):

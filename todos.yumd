@@ -1,0 +1,5 @@
+1. cleverer handling of characters: ae? á?
+1. cleverer handling of ß and umlauts. perhaps duplicate the word with the umlauts and without, and the word with the ß and ss
+1. cleverer handling of capitals for nouns. try:
+   - making everything lowercase
+   - lowercasing for first word of sentence if not noun

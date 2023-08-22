@@ -1,13 +1,17 @@
+from typing import Callable, Literal
 import torch
 import torch.nn as nn
 from .word_cnn import WordCNN
 
+from ...util.logger import model_logger
+
 class WordEmbedding(nn.Module):
-    def __init__(self, char_set: list[str] | set[str], char_internal_embedding_dim: int, char_part_embedding_dim: int,  word_part_embedding_dim: int, char_internal_window_size: int, word_dict: dict[int, str]):
+    def __init__(self, char_set: dict[str, int], char_flag_generators: list[Callable[[str], Literal[1, 0]]], char_internal_embedding_dim: int, char_part_embedding_dim: int,  word_part_embedding_dim: int, char_internal_window_size: int, word_dict: dict[int, str]):
         """initialize a WordEmbedding module. Produces embeddings from word codes, which are concatenations of word- and character-level embeddings
 
         Args:
-            char_set (list[str] | set[str]): set of recognised characters to be fed into WordCNN, excluding <UNK> and <PAD>. When calling .forward, characters not in char_set will be treated as <UNK>
+            char_set (dict[str, int]): set of characters to be recognised, excluding <UNK> and <PAD>. Codes must start from 2 (0 and 1 are reserved for <UNK> and <PAD> respectively). When calling .forward, characters not in char_set will be treated as <UNK>
+            char_flag_generators (list[Callable[[str], Literal[1, 0]]): set of flag generators to pass to WordCNN
             char_internal_embedding_dim (int): size of internal character embeddings in WordCNN
             char_part_embedding_dim (int): size of character-level embedding representation in output
             word_part_embedding_dim (int): size of word-level embedding representation in output
@@ -19,11 +23,11 @@ class WordEmbedding(nn.Module):
 
         word_dict = word_dict.copy()
 
-        self.word_cnn = WordCNN(char_set, char_internal_embedding_dim, char_part_embedding_dim, char_internal_window_size, word_dict)
+        self.word_cnn = WordCNN(char_set, char_flag_generators, char_internal_embedding_dim, char_part_embedding_dim, char_internal_window_size, word_dict)
 
         if 0 in word_dict:
             word_dict.pop(0)
-            print("Warning: treating word code 0 as <UNK>")
+            model_logger.warning("Treating word code 0 as <UNK>.")
 
         self.num_words = len(word_dict) # number of known words excluding <UNK>
 
