@@ -37,7 +37,7 @@ class WordCNN(nn.Module):
         self.embedding_dim = char_embedding_dim
         self.embeddings = nn.Embedding(self.num_embeddings, self.embedding_dim, padding_idx=1)
         with torch.no_grad():
-            self.embeddings.weight[1] = 0 # padding embedding is zeros 
+            self.embeddings.weight[1] = 0 # padding embedding is zeros within convoluation
 
         # define flags
         self.num_flags = 1 + len(flag_generators) # note: only unknown flag will be set for unknown characters (even if e.g. it is capital)
@@ -61,22 +61,25 @@ class WordCNN(nn.Module):
         if 0 in word_dict:
             word_dict.pop(0)
             model_logger.warning("Treating word code 0 as <UNK>")
+
+        if 1 in word_dict:
+            word_dict.pop(1)
+            model_logger.warning("Treating word code 1 as <PAD>")
         self.num_words = len(word_dict) # number of known words excluding <UNK>
 
-        assert set(word_dict.keys()) == set(range(1, self.num_words + 1)), "Word dictionary (excluding 0 for <UNK>) keys must be a range of integers from 1 to the length of the dictionary"
+        assert set(word_dict.keys()) == set(range(2, self.num_words + 2)), "excluding 0 for <UNK> and 1 for <PAD>, word dictionary keys must be a range of integers from 2 to the length of the dictionary + 1, inclusive"
         self.max_word_length = max([len(v) for v in word_dict.values()])
 
-        self.word_dict = nn.Parameter(torch.ones(self.num_words + 1, self.max_word_length, dtype=torch.long), requires_grad=False) # word code -> list of character codes; index 0 corresponds to <UNK> but will be unused; fill with ones to indicate padding
-        self.word_lengths = nn.Parameter(torch.zeros(self.num_words + 1, dtype=torch.long), requires_grad=False)
+        self.word_dict = nn.Parameter(torch.ones(self.num_words + 2, self.max_word_length, dtype=torch.long), requires_grad=False) # word code -> list of character codes; index 0 corresponds to <UNK> but will be unused; index 1 corresponds to <PAD> word; fill with ones to indicate padding
+        self.word_lengths = nn.Parameter(torch.zeros(self.num_words + 2, dtype=torch.long), requires_grad=False)
 
-        for i, word in word_dict.items(): # iterate word_dict keys (excluding 0)
+        for i, word in word_dict.items(): # iterate word_dict keys (excluding 0 and 1)
             self.word_lengths[i] = len(word)
-
 
             for j, c in enumerate(word):
                 self.word_dict[i, j] = self.character_set.get(c, 0)
 
-        self.word_lengths_masks = nn.Parameter(torch.full((self.max_word_length + 1, self.max_word_length), True).triu()[self.word_lengths], requires_grad=False)
+        # self.word_lengths_masks = nn.Parameter(torch.full((self.max_word_length + 1, self.max_word_length), True).triu()[self.word_lengths], requires_grad=False)
 
 
     def forward(self, x: torch.Tensor, new_words_dict: dict[int, str] | None = None) -> torch.Tensor:
@@ -94,9 +97,11 @@ class WordCNN(nn.Module):
             model_logger.warning("Warning: converting into long tensor")
             x = x.to(dtype=torch.long)
 
-        unknown_words = x < 0
-        known_words = x > 0
-        x_words = torch.ones(*x.shape, self.max_word_length, dtype=torch.long, device=x.device)
+        unknown_words = x < 0 # words that are unknown AND have been specified in new_words_dict (word code 0 means unknown words that don't want to be specified)
+        known_words = x > 1 # ignore padding and unknown words that don't want to be specified
+        padding_words = x == 1
+
+        x_words = torch.ones(*x.shape, self.max_word_length, dtype=torch.long, device=x.device) # word code 0 will be filled with padding chars (1)
         x_words[known_words] = self.word_dict[x[known_words]] # dimensions (*S, self.max_word_length)
 
         unknown_words_locs = unknown_words.nonzero(as_tuple=False)
@@ -128,4 +133,6 @@ class WordCNN(nn.Module):
        
         max_out: torch.Tensor = conv_out.max(dim=-1).values # dimensions (N, self.out_embedding_size)
 
-        return max_out.reshape(*x.shape, -1) # dimensions (*S, self.out_embedding_size)
+        res = max_out.reshape(*x.shape, -1) # dimensions (*S, self.out_embedding_size)
+        res[padding_words] = 1 # padding words are ones for final embedding output
+        return res

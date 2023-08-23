@@ -16,7 +16,7 @@ class WordEmbedding(nn.Module):
             char_part_embedding_dim (int): size of character-level embedding representation in output
             word_part_embedding_dim (int): size of word-level embedding representation in output
             char_internal_window_size (int): window size when performing convolution in WordCNN
-            word_dict (dict[int, str]): dictionary of recognised words. The keys should be a range of integers from 1 to the length of the dictionary. The values should be the corresponding words. The value corresponding to key 0 is treated as <UNK> (optional). When calling .forward, words not in word_dict will be treated as <UNK>, but can be added to the dictionary by passing a new_words_dict to .forward, to help generate a character-level embedding nonetheless.
+            word_dict (dict[int, str]): dictionary of recognised words. The keys should be a range of integers from 2 to the length of the dictionary + 1, inclusive. The values should be the corresponding words. The value corresponding to key 0 is treated as <UNK> and key 1 is <PAD> (optional). When calling .forward, words not in word_dict will be treated as <UNK>, but can be added to the dictionary by passing a new_words_dict to .forward, to help generate a character-level embedding nonetheless.
         """
 
         super().__init__()
@@ -29,16 +29,23 @@ class WordEmbedding(nn.Module):
             word_dict.pop(0)
             model_logger.warning("Treating word code 0 as <UNK>.")
 
-        self.num_words = len(word_dict) # number of known words excluding <UNK>
+        if 1 in word_dict:
+            word_dict.pop(1)
+            model_logger.warning("Treating word code 1 as <PAD>.")
 
-        assert set(word_dict.keys()) == set(range(1, self.num_words + 1)), "Word dictionary (excluding 0 for <UNK>) keys must be a range of integers from 1 to the length of the dictionary"
+        self.num_words = len(word_dict) # number of known words excluding <UNK> and <PAD>
+
+        assert set(word_dict.keys()) == set(range(2, self.num_words + 2)), "(excluding 0 for <UNK> and 1 for <PAD>), word dictionary keys must be a range of integers from 1 to the length of the dictionary + 1, inclusive"
 
         word_dict[0] = "<UNK>"
+        word_dict[1] = "<PAD>"
 
         self.word_dict = word_dict
         self.word_part_embedding_dim = word_part_embedding_dim
 
-        self.embeddings = nn.Embedding(self.num_words + 1, self.word_part_embedding_dim)
+        self.embeddings = nn.Embedding(self.num_words + 2, self.word_part_embedding_dim, padding_idx=1)
+        with torch.no_grad():
+            self.embeddings.weight[1] = 1 # padding embedding is ones within word-level embedding
 
     def forward(self, x: torch.Tensor, new_words_dict: dict[int, str] | None = None):
         """take a tensor of word codes and return a tensor of word embeddings
@@ -51,11 +58,13 @@ class WordEmbedding(nn.Module):
             torch.Tensor: output tensor of shape (*S, self.char_part_embedding_dim + self.word_part_embedding_dim)
         """
 
-        unknown_words = x <= 0
+        x = torch.as_tensor(x)
 
         char_part: torch.Tensor = self.word_cnn(x, new_words_dict) # dimensions (*S, self.char_part_embedding_dim)
 
-        x[unknown_words] = 0 # set unknown words to <UNK> code when generating word-part embeddings
+        x = x.maximum(torch.zeros(1)).to(dtype=torch.long) # replace negative indices with 0 (corresponding to <UNK>) when calculating word-level embeddings
         word_part: torch.Tensor = self.embeddings(x) # dimensions (*S, self.word_part_embedding_dim)
 
-        return torch.cat((char_part, word_part), dim=-1) # dimensions (*S, self.char_part_embedding_dim + self.word_part_embedding_dim)
+        res = torch.cat((char_part, word_part), dim=-1) # dimensions (*S, self.char_part_embedding_dim + self.word_part_embedding_dim)
+        
+        return res

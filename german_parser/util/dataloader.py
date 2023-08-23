@@ -6,13 +6,14 @@ from torch.utils.data import Dataset
 from collections.abc import Callable
 from typing import Literal
 import torch
+from torch import nn
 
 from .logger import model_logger
-from .c_and_d import ConstituentTree
+from .c_and_d import ConstituentTree, DependencyTree
 
 
 class TigerDataset(Dataset):
-    def __init__(self, in_sentences: list[list[str]], use_new_words: bool, word_dict: dict[str, int], character_dict: dict[str, int], character_flag_generators: list[Callable[[str], Literal[1, 0]]]) -> None:
+    def __init__(self, in_dependency_trees: list[DependencyTree], use_new_words: bool, word_dict: dict[str, int], character_dict: dict[str, int], character_flag_generators: list[Callable[[str], Literal[1, 0]]]) -> None:
         super().__init__()
 
         self.word_dict = word_dict
@@ -20,23 +21,26 @@ class TigerDataset(Dataset):
         self.character_flag_generators = character_flag_generators
         self.use_new_words = use_new_words
 
-        self.num_sentences = len(in_sentences)
-        self.max_sentence_length = max(len(s) for s in in_sentences)
+        self.num_sentences = len(in_dependency_trees)
+        self.max_sentence_length = max(len(s.get_words()) for s in in_dependency_trees)
 
         # define dictionaries for new words. These dictionaries will be shared across batches to save generating them every time a batch is created
         self.new_words_to_id: dict[str, int] = {}
-        for sent in in_sentences:
-            for word in sent:
+        for d_tree in in_dependency_trees:
+            for word in d_tree.get_words():
                 if word not in self.word_dict and word not in self.new_words_to_id:
                     self.new_words_to_id[word] = len(self.new_words_to_id) + 1
         self.id_to_new_words: dict[int, str] = {i: s for s, i in self.new_words_to_id.items()}
 
         self.sentence_lengths = torch.zeros(self.num_sentences, dtype=torch.long)
-        self.data = torch.ones(self.num_sentences, self.max_sentence_length, dtype=torch.long) # 1 corresponds to <PAD>
+        self.data = torch.ones(self.num_sentences, self.max_sentence_length, dtype=torch.long) # ones to default with padding
+        self.heads = torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long)
 
-        for i, sent in enumerate(in_sentences):
-            self.sentence_lengths[i] = len(sent)
-            for j, word in enumerate(sent):
+        for i, d_tree in enumerate(in_dependency_trees):
+            self.sentence_lengths[i] = d_tree.num_words
+
+            for j, word in enumerate(d_tree.get_words()):
+
                 if word in self.word_dict:
                     self.data[i, j] = self.word_dict[word]
                 elif self.use_new_words:
@@ -57,7 +61,10 @@ class TigerDataset(Dataset):
         Returns:
             tuple[torch.Tensor, torch.Tensor, dict[int, str] | None]: data, sentence lengths, new words dictionary (if self.use_new_words is True)
         """
-        return self.data[idx], self.sentence_lengths[idx], (self.id_to_new_words if self.use_new_words else None)
+        return self.data[idx], self.sentence_lengths[idx] #, (self.id_to_new_words if self.use_new_words else None)
+    
+    def get_new_words_dict(self):
+        return self.id_to_new_words
 
 class TigerDatasetGenerator:
     def _set_word_dict(self, coverage: float): 
@@ -78,7 +85,8 @@ class TigerDatasetGenerator:
             cum_freq += all_word_freqs[all_words_sorted[w_idx]]
             w_idx += 1
 
-        self.word_dict: dict[str, int] = {w: i + 1 for i, w in enumerate(all_words_sorted[:w_idx])}
+        self.word_dict: dict[str, int] = {w: i + 2 for i, w in enumerate(all_words_sorted[:w_idx])} # 0 and 1 are reserved for <UNK> and <PAD> respectively
+        self.inverse_word_dict: dict[int, str] = {i: w for w, i in self.word_dict.items()}
 
     def _set_character_dict(self):
         all_characters_lower: set[str] = set()
@@ -89,7 +97,7 @@ class TigerDatasetGenerator:
                 all_characters_lower.update(word.lower())
                 all_characters_upper.update(word.upper())
 
-        self.character_set: dict[str, int] = {c: i + 2 for i, c in enumerate(all_characters_lower)}
+        self.character_set: dict[str, int] = {c: i + 2 for i, c in enumerate(all_characters_lower)} # 0 and 1 are reserved for <UNK> and <PAD> respectively
         for u in all_characters_upper:
             if u not in self.character_set:
                 self.character_set[u] = self.character_set[u.lower()]
@@ -173,7 +181,13 @@ class TigerDatasetGenerator:
         self._set_character_flag_generators()
 
     def _get_dataset(self, dataset: list[ConstituentTree], use_new_words: bool=True):
-        return TigerDataset([s.get_words() for s in dataset], use_new_words, self.word_dict, self.character_set, self.character_flag_generators)
+        return TigerDataset(
+            [DependencyTree.from_c_tree(s) for s in dataset],
+            use_new_words,
+            self.word_dict,
+            self.character_set,
+            self.character_flag_generators
+        )
 
     def get_training_dataset(self, use_new_words: bool=True):
         return self._get_dataset(self.train_sentences, use_new_words)
