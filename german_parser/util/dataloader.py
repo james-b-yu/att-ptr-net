@@ -36,6 +36,8 @@ class TigerDataset(Dataset):
         self.data = torch.ones(self.num_sentences, self.max_sentence_length, dtype=torch.long) # ones to default with padding
         self.heads = torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long)
 
+        self.dependency_trees = in_dependency_trees
+
         for i, d_tree in enumerate(in_dependency_trees):
             self.sentence_lengths[i] = d_tree.num_words
 
@@ -47,6 +49,11 @@ class TigerDataset(Dataset):
                     self.data[i, j] = -self.new_words_to_id[word]
                 else:
                     self.data[i, j] = 0 # 0 corresponds to <UNK>
+
+            for head_idx, modifier_idxs in d_tree.get_tree_map().items():
+                for modifier_idx in modifier_idxs:
+                    # since the dependency tree is 1-indexed, we need to subtract 1 from the indices. HOWEVER: we add 1 back onto head indices, since head index 0 corresponds to no head (root)
+                    self.heads[i, modifier_idx - 1] = head_idx
 
 
     def __len__(self):
@@ -61,7 +68,7 @@ class TigerDataset(Dataset):
         Returns:
             tuple[torch.Tensor, torch.Tensor, dict[int, str] | None]: data, sentence lengths, new words dictionary (if self.use_new_words is True)
         """
-        return self.data[idx], self.sentence_lengths[idx] #, (self.id_to_new_words if self.use_new_words else None)
+        return self.data[idx], self.sentence_lengths[idx], self.heads[idx] #, (self.id_to_new_words if self.use_new_words else None)
     
     def get_new_words_dict(self):
         return self.id_to_new_words
