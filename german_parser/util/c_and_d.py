@@ -400,7 +400,7 @@ class DependencyTree(BaseModel):
     def get_arcs(self):
         return [a for v in self.modifiers.values() for m in v.values() for a in m]
 
-    def get_words(self):
+    def get_words_as_set(self):
         all_words: set[int] = set()
 
         for a in self.get_arcs():
@@ -410,7 +410,7 @@ class DependencyTree(BaseModel):
         return all_words
 
     def get_root(self):
-        all_words = self.get_words()
+        all_words = self.get_words_as_set()
         modifier_words: set[int] = set()
 
         for a in self.get_arcs():
@@ -423,7 +423,7 @@ class DependencyTree(BaseModel):
         return root_set.pop()
     
     def get_tree_map(self):
-        tree_map: dict[int, set[int]] = {}
+        tree_map: dict[int, set[int]] = {} # i |-> all words which have i as head
 
         for arc in self.get_arcs():
             parent = arc.head
