@@ -30,6 +30,24 @@ class BiAffine(nn.Module):
             dec (torch.Tensor): tensor of size (B, T, dec_input_size)
         """
 
+        # BEGIN NAIVE METHOD
+        # dec_brd = dec[:, :, None, None, :, None]         # (B, T, 1,     1,           dec_input_size, 1)
+        # Z = self.Z[None, None, None, :, :, :]            # (1, 1, 1,     num_classes, dec_input_size, enc_input_size)
+        # enc_brd = enc[:, None, :, None, :, None]         # (B, 1, T + 1, 1,           enc_input_size, 1)
+
+        # # (B, T, T + 1, num_classes) index via [batch_number, DECoder_index, ENCoder_index]
+        # interaction_score = (dec_brd.transpose(-1, -2) @ Z @ enc_brd).squeeze(-1, -2)
+
+        # dec_brd = dec_brd.squeeze(3)
+        # enc_brd = enc_brd.squeeze(3)
+
+        # enc_score = (self.U_enc @ enc_brd).squeeze(-1) # (B, 1, T + 1, num_classes)
+        # dec_score = (self.U_dec @ dec_brd).squeeze(-1) # (B, T, 1, num_classes)
+
+        # bias = self.b[None, None, None, :]             # (1, 1, 1, num_classes)
+        # END NAIVE METHOD
+
+        # BEGIN EINSUM METHOD
         interaction_score = torch.einsum("nij,bsj,bti->btsn", self.Z, enc, dec) # (B, T, T + 1, num_classes)
         enc_score = torch.einsum("nj,bsj->bsn", self.U_enc, enc) # (B, T + 1, num_classes)
         dec_score = torch.einsum("ni,bti->btn", self.U_dec, dec) # (B, T, num_classes)
@@ -38,6 +56,7 @@ class BiAffine(nn.Module):
         dec_score = dec_score.unsqueeze(2) # (B, T, 1,     num_classes)
 
         bias = self.b[None, None, None, :] # (1, 1, 1,     num_classes)
+        # END EINSUM METHOD
 
         res = interaction_score + enc_score + dec_score + bias # (B, T, T + 1, num_classes)
 
@@ -64,6 +83,7 @@ class BiAffine(nn.Module):
 
 
     def _reset_parameters(self):
+        # return
         with torch.no_grad():
             Zb_bound = ((self.enc_input_size ** 0.5) * (self.dec_input_size ** 0.5)) ** 0.5
             self.Z.uniform_(-Zb_bound, Zb_bound)
