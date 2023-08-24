@@ -26,26 +26,20 @@ class BiAffine(nn.Module):
         """calculate biaffine score between enc and dec
 
         Args:
-            enc (torch.Tensor): tensor of size (B, T, enc_input_size)
+            enc (torch.Tensor): tensor of size (B, T + 1, enc_input_size)
             dec (torch.Tensor): tensor of size (B, T, dec_input_size)
         """
 
-        dec_brd = dec[:, :, None, None, :, None]         # (B, T, 1,     1,           dec_input_size, 1)
-        Z = self.Z[None, None, None, :, :, :]            # (1, 1, 1,     num_classes, dec_input_size, enc_input_size)
-        enc_brd = enc[:, None, :, None, :, None]         # (B, 1, T + 1, 1,           enc_input_size, 1)
+        interaction_score = torch.einsum("nij,bsj,bti->btsn", self.Z, enc, dec) # (B, T, T + 1, num_classes)
+        enc_score = torch.einsum("nj,bsj->bsn", self.U_enc, enc) # (B, T + 1, num_classes)
+        dec_score = torch.einsum("ni,bti->btn", self.U_dec, dec) # (B, T, num_classes)
 
-        # (B, T, T + 1, num_classes) index via [batch_number, DECoder_index, ENCoder_index]
-        interaction_score = (dec_brd.transpose(-1, -2) @ Z @ enc_brd).squeeze(-1, -2)
+        enc_score = enc_score.unsqueeze(1) # (B, 1, T + 1, num_classes)
+        dec_score = dec_score.unsqueeze(2) # (B, T, 1,     num_classes)
 
-        dec_brd = dec_brd.squeeze(3)
-        enc_brd = enc_brd.squeeze(3)
+        bias = self.b[None, None, None, :] # (1, 1, 1,     num_classes)
 
-        enc_score = (self.U_enc @ enc_brd).squeeze(-1) # (B, 1, T + 1, num_classes)
-        dec_score = (self.U_dec @ dec_brd).squeeze(-1) # (B, T, 1, num_classes)
-
-        bias = self.b[None, None, None, :]             # (1, 1, 1, num_classes)
-
-        res = interaction_score + enc_score + dec_score + bias
+        res = interaction_score + enc_score + dec_score + bias # (B, T, T + 1, num_classes)
 
         # # check correctness
         # if self.check_accuracy:

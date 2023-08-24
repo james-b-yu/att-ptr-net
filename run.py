@@ -12,12 +12,12 @@ from string import punctuation
 train_dataloader, train_new_words, character_set, character_flag_generators, inverse_word_dict = pickle.load(open("required_vars.pkl", "rb"))
 
 
-model = TigerModel(TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=10, char_part_embedding_dim=100, word_part_embedding_dim=100, char_internal_window_size=3, word_dict=inverse_word_dict), TigerModel.LSTMParams(hidden_size=512, bidirectional=True), TigerModel.LSTMParams(hidden_size=512, bidirectional=False))
+model = TigerModel(TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=10, char_part_embedding_dim=100, word_part_embedding_dim=100, char_internal_window_size=3, word_dict=inverse_word_dict), TigerModel.LSTMParams(hidden_size=10, bidirectional=True), TigerModel.LSTMParams(hidden_size=10, bidirectional=False))
 model.cuda()
 
 print(f"Model as {sum([p.numel() for p in model.parameters()])} parameters")
 
-optim = torch.optim.Adam(model.parameters(), lr=1e-2)
+optim = torch.optim.Adam(model.parameters(), lr=1e-4)
 
 i = 0
 
@@ -40,6 +40,4 @@ while True:
     loss.backward()
 
     optim.step()
-
-    break
     
