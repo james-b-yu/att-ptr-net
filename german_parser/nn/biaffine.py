@@ -34,7 +34,8 @@ class BiAffine(nn.Module):
         Z = self.Z[None, None, None, :, :, :]            # (1, 1, 1,     num_classes, dec_input_size, enc_input_size)
         enc_brd = enc[:, None, :, None, :, None]         # (B, 1, T + 1, 1,           enc_input_size, 1)
 
-        interaction_score = (dec_brd.transpose(-1, -2) @ Z @ enc_brd).squeeze(-1, -2) # (B, T, T + 1, num_classes) index via [batch_number, DECoder_index, ENCoder_index]
+        # (B, T, T + 1, num_classes) index via [batch_number, DECoder_index, ENCoder_index]
+        interaction_score = (dec_brd.transpose(-1, -2) @ Z @ enc_brd).squeeze(-1, -2)
 
         dec_brd = dec_brd.squeeze(3)
         enc_brd = enc_brd.squeeze(3)
@@ -46,21 +47,21 @@ class BiAffine(nn.Module):
 
         res = interaction_score + enc_score + dec_score + bias
 
-        # check correctness
-        if self.check_accuracy:
-            n_batches = enc.shape[0]
-            seq_length = dec.shape[1]
-            assert enc.shape[1] == seq_length + 1, "Encoder output must have one more item than decoder, as the first item denotes ROOT"
+        # # check correctness
+        # if self.check_accuracy:
+        #     n_batches = enc.shape[0]
+        #     seq_length = dec.shape[1]
+        #     assert enc.shape[1] == seq_length + 1, "Encoder output must have one more item than decoder, as the first item denotes ROOT"
 
-            for batch_num in range(n_batches):
-                for c in range(self.num_classes):
-                    for i in range(seq_length + 1): # encoder index
-                        for j in range(seq_length): # decoder index
-                            res_val = res[batch_num, j, i, c]
+        #     for batch_num in range(n_batches):
+        #         for c in range(self.num_classes):
+        #             for i in range(seq_length + 1): # encoder index
+        #                 for j in range(seq_length): # decoder index
+        #                     res_val = res[batch_num, j, i, c]
 
-                            true_val = dec[batch_num, j] @ self.Z[c] @ enc[batch_num, i] + self.U_enc[c] @ enc[batch_num, i] + self.U_dec[c] @ dec[batch_num, j] + self.b[c]
+        #                     true_val = dec[batch_num, j] @ self.Z[c] @ enc[batch_num, i] + self.U_enc[c] @ enc[batch_num, i] + self.U_dec[c] @ dec[batch_num, j] + self.b[c]
                         
-                            print((res_val.item() - true_val.item()) / true_val.item())
+        #                     print((res_val.item() - true_val.item()) / true_val.item())
 
         if self.include_attention:
             res = self.w @ res.tanh().transpose(-1, -2) # (B, T, T + 1)

@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import Literal
 import torch
 from torch import nn
+from torch.utils.data import DataLoader, default_collate
 
 from .logger import model_logger
 from .c_and_d import ConstituentTree, DependencyTree
@@ -55,6 +56,31 @@ class TigerDataset(Dataset):
                     # since the dependency tree is 1-indexed, we need to subtract 1 from the indices. HOWEVER: we add 1 back onto head indices, since head index 0 corresponds to no head (root)
                     self.heads[i, modifier_idx - 1] = head_idx
 
+    @classmethod
+    def _sorted_collate(cls, word_codes: torch.Tensor, sentence_lengths: torch.Tensor, head_targets: torch.Tensor):
+        """given a batch of word codes, sentence lengths, and head targets, sorts them by sentence length in descending order, and returns the sorted batch, truncated to remove unnecessary padding 1s
+
+        Args:
+            word_codes (torch.Tensor): (B, T), where T is the maximum sentence length across the entire dataset
+            sentence_lengths (torch.Tensor): (B)
+            head_targets (torch.Tensor): (B, T)
+
+        Returns:
+            _type_: tuple[word_codes, sentence_lengths, head_targets] which have been sorted and such that their sizes are:
+                word_codes (B, T_batch)
+                sentence_lengths (B)
+                head_targets (B, T_batch),
+            where T_batch is maximum sentence length within the batch. This removes unnecessary padidng 1s at the end of each row of word_codes and head_targets
+        """
+        arg_sort = sentence_lengths.argsort(descending=True)
+
+        sentence_lengths_sorted = sentence_lengths[arg_sort]
+        T_batch = sentence_lengths_sorted[0] # maximum sentence size within the batch
+        
+        word_codes_sorted: torch.Tensor = word_codes[arg_sort][:, :T_batch]
+        head_targets_sorted: torch.Tensor = head_targets[arg_sort][:, :T_batch]
+
+        return (word_codes_sorted, sentence_lengths_sorted, head_targets_sorted)
 
     def __len__(self):
         return self.num_sentences
@@ -68,8 +94,13 @@ class TigerDataset(Dataset):
         Returns:
             tuple[torch.Tensor, torch.Tensor, dict[int, str] | None]: data, sentence lengths, new words dictionary (if self.use_new_words is True)
         """
-        return self.data[idx], self.sentence_lengths[idx], self.heads[idx] #, (self.id_to_new_words if self.use_new_words else None)
-    
+
+        if idx == int(idx):
+            return self.data[idx], self.sentence_lengths[idx], self.heads[idx]
+        else:
+            idx = torch.as_tensor(idx)
+            return self._sorted_collate(self.data[idx], self.sentence_lengths[idx], self.heads[idx])
+
     def get_new_words_dict(self):
         return self.id_to_new_words
 
@@ -109,15 +140,8 @@ class TigerDatasetGenerator:
             if u not in self.character_set:
                 self.character_set[u] = self.character_set[u.lower()]
 
-    def _set_character_flag_generators(self):
-        self.character_flag_generators: list[Callable[[str], Literal[1, 0]]] = [ # type: ignore
-            lambda c: int(c.isupper()),
-            lambda c: int(c.lower() in ["ä", "ö", "ü", "ß"]),
-            lambda c: int(c.isdigit()),
-            lambda c: int(c in punctuation)
-        ]
 
-    def __init__(self, file_path: str, split: tuple[float, float], vocab_coverage: float=0.95, prop_of_tiger_to_use: float=1.0):
+    def __init__(self, file_path: str, split: tuple[float, float], vocab_coverage: float=0.95, prop_of_tiger_to_use: float=1.0, character_flag_generators: list[Callable[[str], Literal[0, 1]]] = []):
         """initializes dataset generator
 
         Args:
@@ -185,9 +209,9 @@ class TigerDatasetGenerator:
 
         self._set_word_dict(vocab_coverage)
         self._set_character_dict()
-        self._set_character_flag_generators()
+        self.character_flag_generators = character_flag_generators
 
-    def _get_dataset(self, dataset: list[ConstituentTree], use_new_words: bool=True):
+    def _get_dataset(self, dataset: list[ConstituentTree], use_new_words: bool=True) -> TigerDataset:
         return TigerDataset(
             [DependencyTree.from_c_tree(s) for s in dataset],
             use_new_words,
@@ -196,13 +220,29 @@ class TigerDatasetGenerator:
             self.character_flag_generators
         )
 
-    def get_training_dataset(self, use_new_words: bool=True):
+    def _get_dataloader(self, dataset: TigerDataset, **kargs) -> tuple[DataLoader[TigerDataset], dict[int, str]]:
+        return DataLoader(
+            dataset,
+            **kargs,
+            collate_fn=lambda batch : TigerDataset._sorted_collate(*default_collate(batch))
+        ), dataset.get_new_words_dict()
+
+    def get_training_dataset(self, use_new_words: bool=True) -> TigerDataset:
         return self._get_dataset(self.train_sentences, use_new_words)
     
-    def get_dev_dataset(self, use_new_words: bool=True):
+    def get_dev_dataset(self, use_new_words: bool=True) -> TigerDataset:
         return self._get_dataset(self.dev_sentences, use_new_words)
     
-    def get_test_dataset(self, use_new_words: bool=True):
+    def get_test_dataset(self, use_new_words: bool=True) -> TigerDataset:
         return self._get_dataset(self.test_sentences, use_new_words)
+    
+    def get_training_dataloader(self, use_new_words: bool=True, **kargs) -> tuple[DataLoader[TigerDataset], dict[int, str]]:
+        return self._get_dataloader(self.get_training_dataset(use_new_words), **kargs)
+    
+    def get_dev_dataloader(self, use_new_words: bool=True, **kargs) -> tuple[DataLoader[TigerDataset], dict[int, str]]:
+        return self._get_dataloader(self.get_dev_dataset(use_new_words), **kargs)
+    
+    def get_test_dataloader(self, use_new_words: bool=True, **kargs) -> tuple[DataLoader[TigerDataset], dict[int, str]]:
+        return self._get_dataloader(self.get_test_dataset(use_new_words), **kargs)
 
 # TODO: perturb dataset by removing capitals and umlauts, and using ae instead of ä

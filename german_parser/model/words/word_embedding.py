@@ -47,6 +47,8 @@ class WordEmbedding(nn.Module):
         with torch.no_grad():
             self.embeddings.weight[1] = 1 # padding embedding is ones within word-level embedding
 
+        self.dummy_param = nn.Parameter(torch.zeros(1), requires_grad=False) # dummy parameter to find device
+
     def forward(self, x: torch.Tensor, new_words_dict: dict[int, str] | None = None):
         """take a tensor of word codes and return a tensor of word embeddings
 
@@ -62,7 +64,7 @@ class WordEmbedding(nn.Module):
 
         char_part: torch.Tensor = self.word_cnn(x, new_words_dict) # dimensions (*S, self.char_part_embedding_dim)
 
-        x = x.maximum(torch.zeros(1)).to(dtype=torch.long) # replace negative indices with 0 (corresponding to <UNK>) when calculating word-level embeddings
+        x = x.maximum(torch.zeros(1, device=self.dummy_param.device)).to(dtype=torch.long) # replace negative indices with 0 (corresponding to <UNK>) when calculating word-level embeddings
         word_part: torch.Tensor = self.embeddings(x) # dimensions (*S, self.word_part_embedding_dim)
 
         res = torch.cat((char_part, word_part), dim=-1) # dimensions (*S, self.char_part_embedding_dim + self.word_part_embedding_dim)

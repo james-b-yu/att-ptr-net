@@ -1,3 +1,5 @@
+*.pkl
+*.pickle
 tools/
 .git_old/
 data/
