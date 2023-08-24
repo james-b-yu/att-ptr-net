@@ -85,15 +85,16 @@ class BiAffine(nn.Module):
     def _reset_parameters(self):
         # return
         with torch.no_grad():
-            Zb_bound = ((self.enc_input_size ** 0.5) * (self.dec_input_size ** 0.5)) ** 0.5
-            self.Z.uniform_(-Zb_bound, Zb_bound)
-            self.b.uniform_(-Zb_bound, Zb_bound)
+            Zb_var = 2 * (((self.enc_input_size ** 0.5) * (self.dec_input_size ** 0.5)) ** -1)
+            self.Z.normal_(0, Zb_var)
+            self.b.normal_(0, Zb_var)
 
-            U_enc_bound = self.enc_input_size ** 0.5
-            self.U_enc.uniform_(-U_enc_bound, U_enc_bound)
-            U_dec_bound = self.dec_input_size ** 0.5
-            self.U_dec.uniform_(-U_dec_bound, U_dec_bound)
+            U_enc_var = 2 * (self.enc_input_size ** -1)
+            self.U_enc.normal_(0, U_enc_var)
+
+            U_dec_var = 2 * (self.dec_input_size ** -1)
+            self.U_dec.normal_(0, U_dec_var)
 
             if self.include_attention:
-                w_bound = self.num_classes ** 0.5
-                self.w.uniform_(-w_bound, w_bound)
+                w_var = 2 * (self.num_classes ** -1)
+                self.w.normal_(0, w_var)
