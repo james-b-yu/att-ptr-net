@@ -49,8 +49,8 @@ class BiAffine(nn.Module):
 
         # BEGIN EINSUM METHOD
         interaction_score = torch.einsum("nij,bsj,bti->btsn", self.Z, enc, dec) # (B, T, T + 1, num_classes)
-        enc_score = torch.einsum("nj,bsj->bsn", self.U_enc, enc) # (B, T + 1, num_classes)
-        dec_score = torch.einsum("ni,bti->btn", self.U_dec, dec) # (B, T, num_classes)
+        enc_score         = torch.einsum("nj,bsj->bsn", self.U_enc, enc)        # (B, T + 1, num_classes)
+        dec_score         = torch.einsum("ni,bti->btn", self.U_dec, dec)        # (B, T, num_classes)
 
         enc_score = enc_score.unsqueeze(1) # (B, 1, T + 1, num_classes)
         dec_score = dec_score.unsqueeze(2) # (B, T, 1,     num_classes)
@@ -83,18 +83,22 @@ class BiAffine(nn.Module):
 
 
     def _reset_parameters(self):
+        nn.init.xavier_uniform_(self.U_enc)
+        nn.init.xavier_uniform_(self.U_dec)
+        nn.init.xavier_uniform_(self.Z)
+
         # return
-        with torch.no_grad():
-            Zb_var = 2 * (((self.enc_input_size ** 0.5) * (self.dec_input_size ** 0.5)) ** -1)
-            self.Z.normal_(0, Zb_var)
-            self.b.normal_(0, Zb_var)
+        # with torch.no_grad():
+        #     Zb_var = 2 * (((self.enc_input_size ** 0.5) * (self.dec_input_size ** 0.5)) ** -1)
+        #     self.Z.normal_(0, Zb_var)
+        #     self.b.normal_(0, Zb_var)
 
-            U_enc_var = 2 * (self.enc_input_size ** -1)
-            self.U_enc.normal_(0, U_enc_var)
+        #     U_enc_var = 2 * (self.enc_input_size ** -1)
+        #     self.U_enc.normal_(0, U_enc_var)
 
-            U_dec_var = 2 * (self.dec_input_size ** -1)
-            self.U_dec.normal_(0, U_dec_var)
+        #     U_dec_var = 2 * (self.dec_input_size ** -1)
+        #     self.U_dec.normal_(0, U_dec_var)
 
-            if self.include_attention:
-                w_var = 2 * (self.num_classes ** -1)
-                self.w.normal_(0, w_var)
+        #     if self.include_attention:
+        #         w_var = 2 * (self.num_classes ** -1)
+        #         self.w.normal_(0, w_var)

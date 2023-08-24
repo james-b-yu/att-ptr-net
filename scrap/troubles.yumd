@@ -1,3 +1,10 @@
 1. huge memory usage when doing naive broadcasting matmul (+28GB for one operation). This was because broadcasting sometimes copies the data along the broadcasted dimenions. Used einsum which greatly sped up the operation and reduced memory usage.
-1. model was not learning when scaling up parameter values. This is because the initialisation strategy for the biaffine layer was problematic (values would grow with number of inputs/outputs: should have shrinked). Changed to use xavier initialisation. (see https://saturncloud.io/blog/the-training-loss-of-my-pytorch-lstm-model-does-not-decrease/#:~:text=If%20the%20initial%20values%20of,small%2C%20leading%20to%20vanishing%20gradients for why and https://365datascience.com/tutorials/machine-learning-tutorials/what-is-xavier-initialization/ for how to improve)
+1. model was not learning when scaling up parameter values. This is because the initialisation strategy for the biaffine layer was problematic (values would grow with number of inputs/outputs: should have shrinked). Changed to use xavier initialisation by using `nn.init.xavier_uniform_`. (see https://saturncloud.io/blog/the-training-loss-of-my-pytorch-lstm-model-does-not-decrease/#:~:text=If%20the%20initial%20values%20of,small%2C%20leading%20to%20vanishing%20gradients for why and https://365datascience.com/tutorials/machine-learning-tutorials/what-is-xavier-initialization/ for how to improve)
+   1. NOTE: learning rate might also have to change if you change number of parameters. Seems like if I add more parameters, I need to decrease the learning rate (otherwise vanishing gradients happens again)
+   1. to diagnose vanishing gradients, i used the following line:
+      ```python
+      utils.clip_grad_norm(model.parameters(), 2)
+      ```
+
+      Healthy gradient norms lie between 0.1 and 10
 1. Dozat and Manning (2017) suggest that with adam, beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm

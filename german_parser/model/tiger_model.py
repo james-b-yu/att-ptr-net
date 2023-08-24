@@ -94,6 +94,11 @@ class TigerModel(nn.Module):
             include_attention=False
         )
 
+        self._reset_parameters()
+
+    def _reset_parameters(self):
+        nn.init.xavier_uniform_(self.enc_init_state)
+
     def _get_final_concatenated_enc_hidden_state(self, c: torch.Tensor):
         """takes final two layers of final cell state of encoder and returns a tensor of size (B, 1, 2 * enc_hidden_size) to initialise the decoder (or encoder)
 
