@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 from torch.nn.utils import rnn as rnn_utils
+import torch.nn.functional as F
 
 from pydantic import BaseModel, Field
 from collections.abc import Callable
@@ -28,7 +29,7 @@ class TigerModel(nn.Module):
         num_layers: int = Field(default=1)
         dropout: float = Field(default=0.2)
 
-    def __init__(self, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, num_biaffine_attention_classes=2, num_constituent_labels=10):
+    def __init__(self, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, num_biaffine_attention_classes=2, num_constituent_labels=10):
         super().__init__()
         self.dummy_param = nn.Parameter(torch.zeros(1), requires_grad=False) # to get self device
         
@@ -78,19 +79,32 @@ class TigerModel(nn.Module):
             self.dec_lstm_params.hidden_size
         )
 
+        # define dense layers to convert between encoder/decoder output and input to biaffine layers
+        self.enc_attention_mlp_dim = enc_attention_mlp_dim
+        self.dec_attention_mlp_dim = dec_attention_mlp_dim
+
+        self.enc_label_mlp_dim = enc_label_mlp_dim
+        self.dec_label_mlp_dim = dec_label_mlp_dim
+
+        self.enc_attention_mlp = nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_attention_mlp_dim)
+        self.dec_attention_mlp = nn.Linear(self.dec_lstm_params.hidden_size, self.dec_attention_mlp_dim)
+
+        self.enc_label_mlp = nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_label_mlp_dim)
+        self.dec_label_mlp = nn.Linear(self.dec_lstm_params.hidden_size, self.dec_label_mlp_dim)
+
         # define biaffine layer for attention
         self.biaffine_attention = BiAffine(
             num_classes=num_biaffine_attention_classes,
-            enc_input_size=2 * self.enc_lstm_params.hidden_size,
-            dec_input_size=self.dec_lstm_params.hidden_size,
+            enc_input_size=self.enc_attention_mlp_dim,
+            dec_input_size=self.dec_attention_mlp_dim,
             include_attention=True
         )
 
         # define biaffine layer for classification of constituent labels
         self.biaffine_constituent_classifier = BiAffine(
             num_classes=num_constituent_labels,
-            enc_input_size=2 * self.enc_lstm_params.hidden_size,
-            dec_input_size=self.dec_lstm_params.hidden_size,
+            enc_input_size=self.enc_label_mlp_dim,
+            dec_input_size=self.dec_label_mlp_dim,
             include_attention=False
         )
 
@@ -183,11 +197,16 @@ class TigerModel(nn.Module):
         # henceforth, indices are 0-indexed in the comments. Effectively, head indices are 1-indexed (0 indicates root), and dependency indices are 0-indexed
         # TASK 1: predict HEAD words
         # for batch b and word index j, argmax(self_attention[b, j]) gives a pointer i to HEAD of word j
-        self_attention = self.biaffine_attention(enc_out_pad, dec_out_pad) # size (B, T, T + 1). index by (batch_num, decoder_index, encoder_index + 1), which represents (batch_num, dependency_index, head_index + 1)
+
+        enc_out_attention = F.elu(self.enc_attention_mlp(enc_out_pad))
+        dec_out_attention = F.elu(self.dec_attention_mlp(dec_out_pad))
+        self_attention = self.biaffine_attention(enc_out_attention, dec_out_attention) # size (B, T, T + 1). index by (batch_num, decoder_index, encoder_index + 1), which represents (batch_num, dependency_index, head_index + 1)
 
         # TASK 2: predict ATTACHMENT labels
         # for batch b and dependency index j and head index i, constituent_lables[b, j, i] gives logits to classify the label of the dependency from word j to HEAD word i
-        constituent_labels = self.biaffine_constituent_classifier(enc_out_pad, dec_out_pad) # size (B, T, T + 1, num_constituent_labels). index by (batch_num, decoder_index, encoder_index + 1, label_index), which represents (batch_num, dependency_index, head_index + 1, label_index)
+        enc_out_label = F.elu(self.enc_label_mlp(enc_out_pad))
+        dec_out_label = F.elu(self.dec_label_mlp(dec_out_pad))
+        constituent_labels = self.biaffine_constituent_classifier(enc_out_label, dec_out_label) # size (B, T, T + 1, num_constituent_labels). index by (batch_num, decoder_index, encoder_index + 1, label_index), which represents (batch_num, dependency_index, head_index + 1, label_index)
 
         # TASK 3: predict attachment ORDER
 

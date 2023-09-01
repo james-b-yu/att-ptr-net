@@ -13,12 +13,31 @@ import torch.nn.utils.clip_grad as utils
 train_dataloader, train_new_words, character_set, character_flag_generators, inverse_word_dict = pickle.load(open("required_vars.pkl", "rb"))
 
 
-model = TigerModel(TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=100, char_part_embedding_dim=100, word_part_embedding_dim=100, char_internal_window_size=3, word_dict=inverse_word_dict), TigerModel.LSTMParams(hidden_size=512, bidirectional=True, num_layers=5), TigerModel.LSTMParams(hidden_size=512, bidirectional=False, num_layers=1))
+model = TigerModel(
+    word_embedding_params=TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=100,
+                                   char_part_embedding_dim=100, 
+                                   word_part_embedding_dim=100, 
+                                   char_internal_window_size=3,
+                                   word_dict=inverse_word_dict),
+    enc_lstm_params=TigerModel.LSTMParams(
+        hidden_size=512,
+        bidirectional=True,
+        num_layers=5),
+    dec_lstm_params=TigerModel.LSTMParams(
+        hidden_size=512,
+        bidirectional=False,
+        num_layers=1
+        ),
+        enc_attention_mlp_dim=512,
+        dec_attention_mlp_dim=512,
+        enc_label_mlp_dim=128,
+        dec_label_mlp_dim=128
+    )
 model.cuda()
 
 print(f"Model as {sum([p.numel() for p in model.parameters()])} parameters")
 
-optim = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
+optim = torch.optim.Adam(model.parameters(), lr=1e-4, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 
 i = 0
 
@@ -44,6 +63,5 @@ while True:
     print(f"{sum_sentences}/{train_total_sentences} ({100 * sum_sentences / train_total_sentences: .2f}%) iteration {i} loss {loss.item():.6f}")
 
     loss.backward()
-
     optim.step()
     
