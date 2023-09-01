@@ -52,7 +52,7 @@ class TigerModel(nn.Module):
             hidden_size=self.enc_lstm_params.hidden_size,
             num_layers=self.enc_lstm_params.num_layers,
             bidirectional=self.enc_lstm_params.bidirectional,
-            dropout=self.enc_lstm_params.dropout
+            dropout_rate=self.enc_lstm_params.dropout
         )
 
         # define decoder
@@ -63,7 +63,7 @@ class TigerModel(nn.Module):
             hidden_size=self.dec_lstm_params.hidden_size,
             num_layers=self.dec_lstm_params.num_layers,
             bidirectional=self.dec_lstm_params.bidirectional,
-            dropout=self.dec_lstm_params.dropout
+            dropout_rate=self.dec_lstm_params.dropout
         )
 
         # define initial encoder state
