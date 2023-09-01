@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn.utils import rnn as rnn_utils
 
 class LSTM(nn.Module): # batch_first = True
     def __init__(self, input_size, hidden_size, bidirectional=True, num_layers=1, dropout_rate=0.2):
@@ -79,15 +80,42 @@ class LSTMSkip(nn.Module): # batch_first = True
             batch_first=True) for i in range(self.num_layers)]
         )
 
-        self.dropout = nn.Dropout(p=self.dropout_rate, inplace=True)
+        self.dropout = nn.Dropout(p=self.dropout_rate, inplace=False)
         
         self.dummy_param = nn.Parameter(torch.zeros(1), requires_grad=False)
+
+    def _dropout_packed_sequence(self, packed_sequence: rnn_utils.PackedSequence | torch.Tensor, batch_first: bool=True, enforce_sorted=True):
+
+        if isinstance(packed_sequence, torch.Tensor):
+            res: torch.Tensor = self.dropout(packed_sequence)
+            return res
+        
+        assert isinstance(packed_sequence, rnn_utils.PackedSequence)
+
+        unpacked, lengths = rnn_utils.pad_packed_sequence(sequence=packed_sequence, batch_first=batch_first)
+        unpacked = self.dropout(unpacked)
+
+        return rnn_utils.pack_padded_sequence(unpacked, lengths, batch_first, enforce_sorted)
+    
+    def _add_packed_sequences(self, packed_sequence_a: rnn_utils.PackedSequence | torch.Tensor, packed_sequence_b: rnn_utils.PackedSequence | torch.Tensor, batch_first: bool=True, enforce_sorted=True):
+
+        if isinstance(packed_sequence_a, torch.Tensor) and isinstance(packed_sequence_b, torch.Tensor):
+            return packed_sequence_a + packed_sequence_b
+        
+        assert isinstance(packed_sequence_a, rnn_utils.PackedSequence) and isinstance(packed_sequence_b, rnn_utils.PackedSequence)
+
+        unpacked_a, lengths = rnn_utils.pad_packed_sequence(sequence=packed_sequence_a, batch_first=batch_first)
+        unpacked_b, lengths = rnn_utils.pad_packed_sequence(sequence=packed_sequence_b, batch_first=batch_first)
+        
+        res = unpacked_a + unpacked_b
+
+        return rnn_utils.pack_padded_sequence(res, lengths, batch_first, enforce_sorted)
 
     def forward(self, *args):
         """compute BiLSTM. Args gets directly fed into first layer (so you can define initial hidden state of first layer). Initial hidden state of all subsequent layers will be zeros.
 
         Args:
-            x (*Any): input directly to PyTorch FIRST layer of the LSTM. Must be batch-first. If is not in a batch, will batch into a batch of one sample
+            x (*Any): input directly to PyTorch FIRST layer of the LSTM. Must be batched (of dimension 3) and batch-first. 
 
         Returns:
             _type_: _description_
@@ -95,23 +123,22 @@ class LSTMSkip(nn.Module): # batch_first = True
         # h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(device)
         # c0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(device)
 
-        res: tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]] | None = None
+        res: tuple[torch.Tensor | rnn_utils.PackedSequence, tuple[torch.Tensor, torch.Tensor]] | None = None
 
-        layer_hiddens: list[torch.Tensor] = []
+        layer_hiddens: list[torch.Tensor | rnn_utils.PackedSequence] = []
         for i in range(self.num_layers):
             args_in: tuple | None = None
 
             if i == 0:
                 args_in = args
-                assert isinstance(args_in[0], torch.Tensor), "First argument of LSTM input must be a tensor"
-                if args_in[0].dim() != 3:
-                    args_in[0].unsqueeze_(0)
+
             else:
                 x_in = layer_hiddens[-1]
                 
-                # add skip connections
-                for j in range(i - 1):
-                    x_in += layer_hiddens[j]
+                # add skip connections when processing final layer
+                if i + 1 == self.num_layers:
+                    for j in range(i - 1):
+                        x_in = self._add_packed_sequences(x_in, layer_hiddens[j])
 
                 args_in = (x_in,)
 
@@ -119,12 +146,9 @@ class LSTMSkip(nn.Module): # batch_first = True
 
             res = self.chain[i](*args_in)
             assert res is not None
-            hidden_out = res[1][1].permute(1, 0, 2)
+            hidden_out = res[0]
 
-            if i + 1 != self.num_layers:
-                self.dropout(hidden_out) # dropout in-place
-
-            layer_hiddens.append(hidden_out)
+            layer_hiddens.append(self._dropout_packed_sequence(hidden_out))
 
         assert res is not None
 

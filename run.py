@@ -13,7 +13,7 @@ import torch.nn.utils.clip_grad as utils
 train_dataloader, train_new_words, character_set, character_flag_generators, inverse_word_dict = pickle.load(open("required_vars.pkl", "rb"))
 
 
-model = TigerModel(TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=100, char_part_embedding_dim=100, word_part_embedding_dim=100, char_internal_window_size=3, word_dict=inverse_word_dict), TigerModel.LSTMParams(hidden_size=512, bidirectional=True, num_layers=3), TigerModel.LSTMParams(hidden_size=512, bidirectional=False, num_layers=1))
+model = TigerModel(TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=100, char_part_embedding_dim=100, word_part_embedding_dim=100, char_internal_window_size=3, word_dict=inverse_word_dict), TigerModel.LSTMParams(hidden_size=512, bidirectional=True, num_layers=5), TigerModel.LSTMParams(hidden_size=512, bidirectional=False, num_layers=1))
 model.cuda()
 
 print(f"Model as {sum([p.numel() for p in model.parameters()])} parameters")

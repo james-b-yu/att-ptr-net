@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from collections.abc import Callable
 from typing import Literal
 
-from ..nn import LSTM
+from ..nn import LSTM, LSTMSkip
 from ..nn import BiAffine
 
 from .words import WordEmbedding
@@ -47,7 +47,7 @@ class TigerModel(nn.Module):
         # define encoder
         self.enc_lstm_params = enc_lstm_params
         assert enc_lstm_params.bidirectional == True, "Encoder must be bidirectional"
-        self.enc_lstm = LSTM(
+        self.enc_lstm = LSTMSkip(
             input_size=word_embedding_params.char_part_embedding_dim + word_embedding_params.word_part_embedding_dim,
             hidden_size=self.enc_lstm_params.hidden_size,
             num_layers=self.enc_lstm_params.num_layers,
@@ -58,7 +58,7 @@ class TigerModel(nn.Module):
         # define decoder
         self.dec_lstm_params = dec_lstm_params
         assert self.dec_lstm_params.bidirectional == False, "Decoder must not be bidirectional"
-        self.dec_lstm = LSTM(
+        self.dec_lstm = LSTMSkip(
             input_size=2 * self.enc_lstm_params.hidden_size,
             hidden_size=self.dec_lstm_params.hidden_size,
             num_layers=self.dec_lstm_params.num_layers,
@@ -66,9 +66,9 @@ class TigerModel(nn.Module):
             dropout_rate=self.dec_lstm_params.dropout
         )
 
-        # define initial encoder state
+        # define initial encoder state for first layer
         self.enc_init_state = nn.Parameter(
-            torch.zeros(2 * self.enc_lstm_params.num_layers, 1, self.enc_lstm_params.hidden_size),
+            torch.zeros(2, 1, self.enc_lstm_params.hidden_size),
             requires_grad=True
         )
 
@@ -129,8 +129,6 @@ class TigerModel(nn.Module):
         c = c.transpose(0, 1) # (1, B, 2 * enc_hidden_size)
         
         c_dec: torch.Tensor = self.enc_final_cell_to_dec_init_cell(c) # (1, B, dec_hidden_size)
-        if self.dec_lstm_params.num_layers > 1:
-            c_dec = torch.cat([c_dec, c_dec.new_zeros((self.dec_lstm_params.num_layers - 1, B, self.dec_lstm.hidden_size))], dim=0)
         
         h_dec = c_dec.tanh()
 
