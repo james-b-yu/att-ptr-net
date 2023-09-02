@@ -5,6 +5,7 @@ tools/
 data/
 models/
 research/
+runs/
 
 .DS_Store
 

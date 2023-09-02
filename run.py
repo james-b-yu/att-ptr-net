@@ -9,13 +9,18 @@ import dill as pickle
 from german_parser.model import TigerModel
 from string import punctuation
 import torch.nn.utils.clip_grad as utils
+from german_parser.util import get_progress_bar
 
 from math import ceil, floor
+
+from torch.utils.tensorboard import SummaryWriter
 
 train_dataloader, train_new_words, character_set, character_flag_generators, inverse_word_dict, inverse_sym_dict = pickle.load(open("required_vars.pkl", "rb"))
 
 from time import time, strftime, gmtime
 from datetime import timedelta
+
+summary_writer = SummaryWriter()
 
 model = TigerModel(
     word_embedding_params=TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=100,
@@ -49,6 +54,8 @@ num_epochs = 10
 
 train_total_sentences = len(train_dataloader.dataset)
 
+total_iteration = 0
+
 for i in range(num_epochs):
     model.train()
     optim.zero_grad()
@@ -79,10 +86,24 @@ for i in range(num_epochs):
         eta_str = timedelta(seconds=eta_seconds)
         speed = round(sum_sentences / (time() - epoch_start_time))
 
-        print(f"EPOCH {i + 1} {'█'*ceil(10 * progress) + '░'* floor(10 - 10 * progress)} ({100 * progress: .2f}%) ATTENTION {loss_attention.item():.6f} LABEL {loss_labels.item():.6f} TOTAL {loss.item():.6f} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)")
+        print(f"EPOCH {i + 1} {get_progress_bar(progress, 20)} ({100 * progress: .2f}%) ATTENTION {loss_attention.item():.6f} LABEL {loss_labels.item():.6f} TOTAL {loss.item():.6f} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)")
+
+        summary_writer.add_scalars(f"epoch_{i + 1}", {
+            "loss_total": loss,
+            "loss_attention": loss_attention,
+            "loss_labels": loss_labels
+        }, j)
+
+        summary_writer.add_scalars("all_epochs", {
+            "loss_total": loss,
+            "loss_attention": loss_attention,
+            "loss_labels": loss_labels
+        }, total_iteration)
 
         loss.backward()
 
         utils.clip_grad_norm_(model.parameters(), max_norm=1)
         optim.step()
         torch.cuda.empty_cache()
+
+        total_iteration += 1
