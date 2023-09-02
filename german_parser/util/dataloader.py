@@ -11,14 +11,17 @@ from torch.utils.data import DataLoader, default_collate
 
 from .logger import model_logger
 from .c_and_d import ConstituentTree, DependencyTree
+from .const import CONSTS
 
 
 class TigerDataset(Dataset):
-    def __init__(self, in_dependency_trees: list[DependencyTree], use_new_words: bool, word_dict: dict[str, int], character_dict: dict[str, int], character_flag_generators: list[Callable[[str], Literal[1, 0]]]) -> None:
+    def __init__(self, in_dependency_trees: list[DependencyTree], use_new_words: bool, word_dict: dict[str, int], character_dict: dict[str, int],
+                 sym_dict: dict[str, int], character_flag_generators: list[Callable[[str], Literal[1, 0]]]) -> None:
         super().__init__()
 
         self.word_dict = word_dict
         self.character_dict = character_dict
+        self.sym_dict = sym_dict
         self.character_flag_generators = character_flag_generators
         self.use_new_words = use_new_words
 
@@ -36,6 +39,8 @@ class TigerDataset(Dataset):
         self.sentence_lengths = torch.zeros(self.num_sentences, dtype=torch.long)
         self.data = torch.ones(self.num_sentences, self.max_sentence_length, dtype=torch.long) # ones to default with padding
         self.heads = torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long)
+        self.syms = torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long)
+        self.attachment_orders = torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long) # use max_sentence_length for redundancy; TODO: change later. 1-indexed
 
         self.dependency_trees = in_dependency_trees
 
@@ -43,7 +48,6 @@ class TigerDataset(Dataset):
             self.sentence_lengths[i] = d_tree.num_words
 
             for j, word in enumerate(d_tree.get_words()):
-
                 if word in self.word_dict:
                     self.data[i, j] = self.word_dict[word]
                 elif self.use_new_words:
@@ -51,13 +55,28 @@ class TigerDataset(Dataset):
                 else:
                     self.data[i, j] = 0 # 0 corresponds to <UNK>
 
+            syms_in_tree = d_tree.get_syms()
+
             for head_idx, modifier_idxs in d_tree.get_tree_map().items():
+                attachment_orders = d_tree.modifiers[head_idx].keys() # these will not be 1-indexed, so we need to translate between internal attachment orders and 1-indexed attachment orders
+                attachment_order_dict: dict[int, int] = {val: zero_indexed + 1 for zero_indexed, val in enumerate(sorted(attachment_orders))} # internal-keys to 1-indexed keys
+                for attachment_order in attachment_orders:
+                    for child in d_tree.modifiers[head_idx][attachment_order]:
+                        modifier_idx = child.modifier
+                        self.attachment_orders[i, modifier_idx - 1] = attachment_order_dict[attachment_order]
+
                 for modifier_idx in modifier_idxs:
                     # since the dependency tree is 1-indexed, we need to subtract 1 from the indices. HOWEVER: we add 1 back onto head indices, since head index 0 corresponds to no head (root)
                     self.heads[i, modifier_idx - 1] = head_idx
+                    self.syms[i, modifier_idx - 1] = self.sym_dict[syms_in_tree[modifier_idx]]
+
+            # note: root word has been neglected in syms and attachment order, so deal with them now:
+            root_idx = d_tree.get_root()
+            self.syms[i, root_idx - 1] = self.sym_dict[CONSTS["d_tree_root_sym"]]
+            self.attachment_orders[i, root_idx - 1] = 1
 
     @classmethod
-    def _sorted_collate(cls, word_codes: torch.Tensor, sentence_lengths: torch.Tensor, head_targets: torch.Tensor):
+    def _sorted_collate(cls, word_codes: torch.Tensor, sentence_lengths: torch.Tensor, head_targets: torch.Tensor, sym_targets: torch.Tensor, attachment_order_targets: torch.Tensor):
         """given a batch of word codes, sentence lengths, and head targets, sorts them by sentence length in descending order, and returns the sorted batch, truncated to remove unnecessary padding 1s
 
         Args:
@@ -79,8 +98,10 @@ class TigerDataset(Dataset):
         
         word_codes_sorted: torch.Tensor = word_codes[arg_sort][:, :T_batch]
         head_targets_sorted: torch.Tensor = head_targets[arg_sort][:, :T_batch]
+        sym_targets_sorted: torch.Tensor = sym_targets[arg_sort][:, :T_batch]
+        attachment_order_targets_sorted: torch.Tensor = attachment_order_targets[arg_sort][:, :T_batch]
 
-        return (word_codes_sorted, sentence_lengths_sorted, head_targets_sorted)
+        return (word_codes_sorted, sentence_lengths_sorted, head_targets_sorted, sym_targets_sorted, attachment_order_targets_sorted)
 
     def __len__(self):
         return self.num_sentences
@@ -92,14 +113,14 @@ class TigerDataset(Dataset):
             idx (indices): indices
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor, dict[int, str] | None]: data, sentence lengths, new words dictionary (if self.use_new_words is True)
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor]: data, sentence lengths, head targets
         """
 
         if idx == int(idx):
-            return self.data[idx], self.sentence_lengths[idx], self.heads[idx]
+            return self.data[idx], self.sentence_lengths[idx], self.heads[idx], self.syms[idx], self.attachment_orders[idx]
         else:
             idx = torch.as_tensor(idx)
-            return self._sorted_collate(self.data[idx], self.sentence_lengths[idx], self.heads[idx])
+            return self._sorted_collate(self.data[idx], self.sentence_lengths[idx], self.heads[idx], self.syms[idx], self.attachment_orders[idx])
 
     def get_new_words_dict(self):
         return self.id_to_new_words
@@ -140,6 +161,14 @@ class TigerDatasetGenerator:
             if u not in self.character_set:
                 self.character_set[u] = self.character_set[u.lower()]
 
+
+    def _set_sym_dict(self):
+        """generate sym dictionary. keys are 0-indexed, where 0 corresponds to DROOT
+        """
+        all_syms: set[str] = set().union(*[c.get_all_syms() for c in self.sentences])
+        self.sym_set: dict[str, int] = {sym: i + 1 for i, sym in enumerate(all_syms)}
+        self.sym_set[CONSTS["d_tree_root_sym"]] = 0
+        self.inverse_sym_set: dict[int, str] = {i: sym for sym, i in self.sym_set.items()}
 
     def __init__(self, file_path: str, split: tuple[float, float], vocab_coverage: float=0.95, prop_of_tiger_to_use: float=1.0, character_flag_generators: list[Callable[[str], Literal[0, 1]]] = []):
         """initializes dataset generator
@@ -182,7 +211,7 @@ class TigerDatasetGenerator:
                 has_unary += int(sent.has_unary)
                 has_empty_verb_constituents += int(sent.has_empty_verb_constituents)
 
-                s_cannot_use = sent.has_unary or sent.has_empty_verb_constituents
+                s_cannot_use = sent.has_unary or sent.has_empty_verb_constituents or sent.get_num_words() < 2
 
                 if not s_cannot_use:
                     self.sentences.append(sent)
@@ -209,6 +238,8 @@ class TigerDatasetGenerator:
 
         self._set_word_dict(vocab_coverage)
         self._set_character_dict()
+        self._set_sym_dict()
+
         self.character_flag_generators = character_flag_generators
 
     def _get_dataset(self, dataset: list[ConstituentTree], use_new_words: bool=True) -> TigerDataset:
@@ -217,6 +248,7 @@ class TigerDatasetGenerator:
             use_new_words,
             self.word_dict,
             self.character_set,
+            self.sym_set,
             self.character_flag_generators
         )
 

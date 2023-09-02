@@ -31,6 +31,7 @@ CONSTS = {
                             },
         "verb_phrase_reattach_symbols": ["S", "VP"],
         "vroot_symbol": "VROOT",
+        "d_tree_root_sym": "DROOT",
         "s_symbol": "S",
         "vp_symbol": "VP",
 }

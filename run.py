@@ -10,8 +10,12 @@ from german_parser.model import TigerModel
 from string import punctuation
 import torch.nn.utils.clip_grad as utils
 
-train_dataloader, train_new_words, character_set, character_flag_generators, inverse_word_dict = pickle.load(open("required_vars.pkl", "rb"))
+from math import ceil, floor
 
+train_dataloader, train_new_words, character_set, character_flag_generators, inverse_word_dict, inverse_sym_dict = pickle.load(open("required_vars.pkl", "rb"))
+
+from time import time, strftime, gmtime
+from datetime import timedelta
 
 model = TigerModel(
     word_embedding_params=TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=100,
@@ -22,7 +26,7 @@ model = TigerModel(
     enc_lstm_params=TigerModel.LSTMParams(
         hidden_size=512,
         bidirectional=True,
-        num_layers=5),
+        num_layers=3),
     dec_lstm_params=TigerModel.LSTMParams(
         hidden_size=512,
         bidirectional=False,
@@ -31,37 +35,54 @@ model = TigerModel(
         enc_attention_mlp_dim=512,
         dec_attention_mlp_dim=512,
         enc_label_mlp_dim=128,
-        dec_label_mlp_dim=128
+        dec_label_mlp_dim=128,
+        num_biaffine_attention_classes=2,
+        num_constituent_labels=len(inverse_sym_dict)
     )
 model.cuda()
 
 print(f"Model as {sum([p.numel() for p in model.parameters()])} parameters")
 
-optim = torch.optim.Adam(model.parameters(), lr=1e-4, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
+optim = torch.optim.SGD(model.parameters(), lr=1e-1) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 
-i = 0
+num_epochs = 10
 
 train_total_sentences = len(train_dataloader.dataset)
-sum_sentences = 0
 
-while True:
-    i += 1
+for i in range(num_epochs):
     model.train()
     optim.zero_grad()
-    input = next(iter(train_dataloader))
 
-    words, sentence_lengths, target_heads = input
-    batch_size = words.shape[0]
-    sum_sentences += batch_size
+    sum_sentences = 0
+    epoch_length = len(train_dataloader)
+    epoch_start_time = time()
 
-    words = words.cuda()
-    target_heads = target_heads.cuda()
+    for j, input in enumerate(train_dataloader):
+        words, sentence_lengths, target_heads, target_syms, target_attachment_orders = input
+        batch_size = words.shape[0]
+        sum_sentences += batch_size
 
-    self_attention, labels, indices = model((words, sentence_lengths), train_new_words)
-    loss = F.cross_entropy(self_attention[indices], target_heads[indices])
+        words = words.cuda()
+        target_heads = target_heads.cuda()
+        target_syms = target_syms.cuda()
 
-    print(f"{sum_sentences}/{train_total_sentences} ({100 * sum_sentences / train_total_sentences: .2f}%) iteration {i} loss {loss.item():.6f}")
+        self_attention, labels, indices = model((words, sentence_lengths), train_new_words)
 
-    loss.backward()
-    optim.step()
-    
+        loss_attention = F.cross_entropy(self_attention[indices], target_heads[indices])
+        loss_labels    = F.cross_entropy(labels[indices, target_heads[indices]], target_syms[indices])
+
+        loss = (loss_attention + loss_labels)
+
+        progress = sum_sentences / train_total_sentences
+        eta_seconds = round((time() - epoch_start_time) * (1 - progress) / progress)
+        eta_time = strftime("%H:%M", gmtime(time() + eta_seconds))
+        eta_str = timedelta(seconds=eta_seconds)
+        speed = round(sum_sentences / (time() - epoch_start_time))
+
+        print(f"EPOCH {i + 1} {'█'*ceil(10 * progress) + '░'* floor(10 - 10 * progress)} ({100 * progress: .2f}%) ATTENTION {loss_attention.item():.6f} LABEL {loss_labels.item():.6f} TOTAL {loss.item():.6f} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)")
+
+        loss.backward()
+
+        utils.clip_grad_norm_(model.parameters(), max_norm=1)
+        optim.step()
+        torch.cuda.empty_cache()

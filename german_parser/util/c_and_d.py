@@ -353,6 +353,12 @@ class ConstituentTree(BaseModel):
     
     def get_words(self):
         return [self.terminals[k].word for k in sorted(self.terminals.keys())]
+    
+    def get_all_syms(self):
+        return set([c.sym for _, c in self.constituents.items()])
+    
+    def get_non_pre_terminal_syms(self):
+        return set([c.sym for _, c in self.constituents.items() if not c.is_pre_terminal])
 
 class Dependency(BaseModel):
     head: int # child
@@ -399,6 +405,18 @@ class DependencyTree(BaseModel):
     
     def get_arcs(self):
         return [a for v in self.modifiers.values() for m in v.values() for a in m]
+
+    def get_syms(self):
+        """returns a dict S, where S[m] gives you the symbol of the dependency from modifier m to its head
+        """
+        res: dict[int, str] = {}
+
+        for arc in self.get_arcs():
+            assert arc.modifier not in res
+            res[arc.modifier] = arc.sym
+
+        return res
+        
 
     def get_words_as_set(self):
         all_words: set[int] = set()
