@@ -47,15 +47,16 @@ model = TigerModel(
         dec_attachment_mlp_dim=64,
         max_attachment_order=train_dataloader.dataset.attachment_orders.max() + 1
     )
-model.cuda()
+model = model.to(device="cuda") # type: ignore
 
 print(f"Model as {sum([p.numel() for p in model.parameters()])} parameters")
 
 optim = torch.optim.SGD(model.parameters(), lr=1e-1) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 
-num_epochs = 10
+num_epochs = 100
 
 train_total_sentences = len(train_dataloader.dataset)
+dev_total_sentences = len(dev_dataloader.dataset)
 
 total_iteration_train = 0
 total_iteration_dev = 0
@@ -82,10 +83,10 @@ for i in range(num_epochs):
             batch_size = words.shape[0]
             sum_sentences += batch_size
 
-            words = words.cuda()
-            target_heads = target_heads.cuda()
-            target_syms = target_syms.cuda()
-            target_attachment_orders = target_attachment_orders.cuda()
+            words = words.to(device="cuda")
+            target_heads = target_heads.to(device="cuda")
+            target_syms = target_syms.to(device="cuda")
+            target_attachment_orders = target_attachment_orders.to(device="cuda")
 
             self_attention, labels, attachment_orders, indices = model((words, sentence_lengths), train_new_words if training else dev_new_words)
 
@@ -101,8 +102,7 @@ for i in range(num_epochs):
             epoch_order_loss += loss_orders.item()
             epoch_total_loss += loss.item()
 
-
-            progress = sum_sentences / train_total_sentences
+            progress = sum_sentences / (train_total_sentences if training else dev_total_sentences)
             eta_seconds = round((time() - epoch_start_time) * (1 - progress) / progress)
             eta_time = strftime("%H:%M", gmtime(time() + eta_seconds))
             eta_str = timedelta(seconds=eta_seconds)
