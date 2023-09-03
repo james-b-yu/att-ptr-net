@@ -29,7 +29,7 @@ class TigerModel(nn.Module):
         num_layers: int = Field(default=1)
         dropout: float = Field(default=0.2)
 
-    def __init__(self, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, num_biaffine_attention_classes=2, num_constituent_labels=10):
+    def __init__(self, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, max_attachment_order: int, num_biaffine_attention_classes=2, num_constituent_labels=10):
         super().__init__()
         self.dummy_param = nn.Parameter(torch.zeros(1), requires_grad=False) # to get self device
         
@@ -86,11 +86,17 @@ class TigerModel(nn.Module):
         self.enc_label_mlp_dim = enc_label_mlp_dim
         self.dec_label_mlp_dim = dec_label_mlp_dim
 
+        self.enc_attachment_mlp_dim = enc_attachment_mlp_dim
+        self.dec_attachment_mlp_dim = dec_attachment_mlp_dim
+
         self.enc_attention_mlp = nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_attention_mlp_dim)
         self.dec_attention_mlp = nn.Linear(self.dec_lstm_params.hidden_size, self.dec_attention_mlp_dim)
 
         self.enc_label_mlp = nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_label_mlp_dim)
         self.dec_label_mlp = nn.Linear(self.dec_lstm_params.hidden_size, self.dec_label_mlp_dim)
+
+        self.enc_attachment_mlp = nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_attachment_mlp_dim)
+        self.dec_attachment_mlp = nn.Linear(self.dec_lstm_params.hidden_size, self.dec_attachment_mlp_dim)
 
         # define biaffine layer for attention
         self.biaffine_attention = BiAffine(
@@ -105,6 +111,14 @@ class TigerModel(nn.Module):
             num_classes=num_constituent_labels,
             enc_input_size=self.enc_label_mlp_dim,
             dec_input_size=self.dec_label_mlp_dim,
+            include_attention=False
+        )
+
+        # define biaffine layer for classification of attachment orders
+        self.biaffine_attachment_classifier = BiAffine(
+            num_classes=max_attachment_order,
+            enc_input_size=self.enc_attachment_mlp_dim,
+            dec_input_size=self.dec_attachment_mlp_dim,
             include_attention=False
         )
 
@@ -209,17 +223,21 @@ class TigerModel(nn.Module):
         constituent_labels = self.biaffine_constituent_classifier(enc_out_label, dec_out_label) # size (B, T, T + 1, num_constituent_labels). index by (batch_num, decoder_index, encoder_index + 1, label_index), which represents (batch_num, dependency_index, head_index + 1, label_index)
 
         # TASK 3: predict attachment ORDER
+        enc_out_attachment = F.elu(self.enc_attachment_mlp(enc_out_pad))
+        dec_out_attachment = F.elu(self.dec_attachment_mlp(dec_out_pad))
+        attachment_orders = self.biaffine_attachment_classifier(enc_out_attachment, dec_out_attachment) # size (B, T, T + 1, max_attachment_order)
 
-        self._mask_out(self_attention, lengths)
-        self._mask_out(constituent_labels, lengths)
+        self._mask_out_(self_attention, lengths)
+        self._mask_out_(constituent_labels, lengths)
+        self._mask_out_(attachment_orders, lengths)
 
         # TODO: TASK 4: predict DEPENDENCY labels (according to GM 2022, this will improve overall performance in a multitask setting)
 
         indices = self._get_batch_indices(lengths)
 
-        return self_attention, constituent_labels, indices
+        return self_attention, constituent_labels, attachment_orders, indices
 
-    def _mask_out(self, out: torch.Tensor, lengths: torch.Tensor):
+    def _mask_out_(self, out: torch.Tensor, lengths: torch.Tensor):
         """mask out unneeded output elements IN PLACE, given sentence lengths
 
         Args:

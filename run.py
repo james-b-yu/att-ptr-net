@@ -15,7 +15,7 @@ from math import ceil, floor
 
 from torch.utils.tensorboard import SummaryWriter
 
-train_dataloader, train_new_words, character_set, character_flag_generators, inverse_word_dict, inverse_sym_dict = pickle.load(open("required_vars.pkl", "rb"))
+(train_dataloader, train_new_words), (dev_dataloader, dev_new_words), _, character_set, character_flag_generators, inverse_word_dict, inverse_sym_dict = pickle.load(open("required_vars.pkl", "rb"))
 
 from time import time, strftime, gmtime
 from datetime import timedelta
@@ -42,7 +42,10 @@ model = TigerModel(
         enc_label_mlp_dim=128,
         dec_label_mlp_dim=128,
         num_biaffine_attention_classes=2,
-        num_constituent_labels=len(inverse_sym_dict)
+        num_constituent_labels=len(inverse_sym_dict),
+        enc_attachment_mlp_dim=128,
+        dec_attachment_mlp_dim=64,
+        max_attachment_order=train_dataloader.dataset.attachment_orders.max() + 1
     )
 model.cuda()
 
@@ -54,56 +57,89 @@ num_epochs = 10
 
 train_total_sentences = len(train_dataloader.dataset)
 
-total_iteration = 0
+total_iteration_train = 0
+total_iteration_dev = 0
 
 for i in range(num_epochs):
-    model.train()
-    optim.zero_grad()
+    for training in (True, False):
+        sum_sentences = 0
+        epoch_length = len(train_dataloader if training else dev_dataloader)
+        epoch_start_time = time()
 
-    sum_sentences = 0
-    epoch_length = len(train_dataloader)
-    epoch_start_time = time()
+        epoch_attention_loss = 0
+        epoch_label_loss = 0
+        epoch_order_loss = 0
+        epoch_total_loss = 0
 
-    for j, input in enumerate(train_dataloader):
-        words, sentence_lengths, target_heads, target_syms, target_attachment_orders = input
-        batch_size = words.shape[0]
-        sum_sentences += batch_size
+        for j, input in (enumerate(train_dataloader) if training else enumerate(dev_dataloader)):
+            if training:
+                model.train()
+                optim.zero_grad()
+            else:
+                model.eval()
 
-        words = words.cuda()
-        target_heads = target_heads.cuda()
-        target_syms = target_syms.cuda()
+            words, sentence_lengths, target_heads, target_syms, target_attachment_orders = input
+            batch_size = words.shape[0]
+            sum_sentences += batch_size
 
-        self_attention, labels, indices = model((words, sentence_lengths), train_new_words)
+            words = words.cuda()
+            target_heads = target_heads.cuda()
+            target_syms = target_syms.cuda()
+            target_attachment_orders = target_attachment_orders.cuda()
 
-        loss_attention = F.cross_entropy(self_attention[indices], target_heads[indices])
-        loss_labels    = F.cross_entropy(labels[indices, target_heads[indices]], target_syms[indices])
+            self_attention, labels, attachment_orders, indices = model((words, sentence_lengths), train_new_words if training else dev_new_words)
 
-        loss = (loss_attention + loss_labels)
+            loss_attention = F.cross_entropy(self_attention[indices], target_heads[indices])
+            loss_labels    = F.cross_entropy(labels[indices, target_heads[indices]], target_syms[indices])
+            loss_orders    = F.cross_entropy(attachment_orders[indices, target_heads[indices]], target_attachment_orders[indices])
 
-        progress = sum_sentences / train_total_sentences
-        eta_seconds = round((time() - epoch_start_time) * (1 - progress) / progress)
-        eta_time = strftime("%H:%M", gmtime(time() + eta_seconds))
-        eta_str = timedelta(seconds=eta_seconds)
-        speed = round(sum_sentences / (time() - epoch_start_time))
+            loss = (loss_attention + loss_labels + loss_orders)
 
-        print(f"EPOCH {i + 1} {get_progress_bar(progress, 20)} ({100 * progress: .2f}%) ATTENTION {loss_attention.item():.6f} LABEL {loss_labels.item():.6f} TOTAL {loss.item():.6f} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)")
+            
+            epoch_attention_loss += loss_attention.item()
+            epoch_label_loss += loss_labels.item()
+            epoch_order_loss += loss_orders.item()
+            epoch_total_loss += loss.item()
 
-        summary_writer.add_scalars(f"epoch_{i + 1}", {
-            "loss_total": loss,
-            "loss_attention": loss_attention,
-            "loss_labels": loss_labels
-        }, j)
 
-        summary_writer.add_scalars("all_epochs", {
-            "loss_total": loss,
-            "loss_attention": loss_attention,
-            "loss_labels": loss_labels
-        }, total_iteration)
+            progress = sum_sentences / train_total_sentences
+            eta_seconds = round((time() - epoch_start_time) * (1 - progress) / progress)
+            eta_time = strftime("%H:%M", gmtime(time() + eta_seconds))
+            eta_str = timedelta(seconds=eta_seconds)
+            speed = round(sum_sentences / (time() - epoch_start_time))
 
-        loss.backward()
+            print(f"EPOCH {i + 1} {'TRN' if training else 'DEV'} {get_progress_bar(progress, 20)} ({100 * progress: .2f}%) ATTENTION {loss_attention.item():.6f} LABEL {loss_labels.item():.6f} ORDERS {loss_orders.item():.6f} TOTAL {loss.item():.6f} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)")
 
-        utils.clip_grad_norm_(model.parameters(), max_norm=1)
-        optim.step()
-        torch.cuda.empty_cache()
 
-        total_iteration += 1
+            for name, iteration in [(f"epoch_{i + 1}_{'trn' if training else 'dev'}", j), (f"all_epochs_{'trn' if training else 'dev'}", total_iteration_train if training else total_iteration_dev)]:
+                summary_writer.add_scalars(name, {
+                    "loss_total": loss,
+                    "loss_attention": loss_attention,
+                    "loss_orders": loss_orders,
+                    "loss_labels": loss_labels
+                }, iteration)
+
+
+            if training:
+                loss.backward()
+                utils.clip_grad_norm_(model.parameters(), max_norm=1)
+                optim.step()
+
+                total_iteration_train += 1
+            else:
+                total_iteration_dev += 1
+
+            torch.cuda.empty_cache()
+
+
+        epoch_attention_loss /= epoch_length
+        epoch_label_loss     /= epoch_length
+        epoch_order_loss     /= epoch_length
+        epoch_total_loss     /= epoch_length
+
+        summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_losses", {
+            "attention": epoch_attention_loss,
+            "label": epoch_label_loss,
+            "order": epoch_order_loss,
+            "total": epoch_total_loss
+        }, i + 1)
