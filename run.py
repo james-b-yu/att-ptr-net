@@ -10,6 +10,7 @@ from german_parser.model import TigerModel
 from string import punctuation
 import torch.nn.utils.clip_grad as utils
 from german_parser.util import get_progress_bar
+from german_parser.util.const import CONSTS
 
 from math import ceil, floor
 
@@ -49,7 +50,7 @@ model = TigerModel(
     )
 model = model.to(device="cuda") # type: ignore
 
-print(f"Model as {sum([p.numel() for p in model.parameters()])} parameters")
+print(f"Model has {sum([p.numel() for p in model.parameters()])} parameters")
 
 optim = torch.optim.SGD(model.parameters(), lr=1e-1) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 
@@ -61,8 +62,19 @@ dev_total_sentences = len(dev_dataloader.dataset)
 total_iteration_train = 0
 total_iteration_dev = 0
 
+filename_prefix = f"tiger_model_{strftime('%Y_%m_%d-%I_%M_%S_%p')}"
+
 for i in range(num_epochs):
-    for training in (True, False):
+    for training in (True, None, False):
+        if training is None:
+            # save the model
+            filename = f"{CONSTS['model_dir']}/{filename_prefix}_epoch_{i + 1}.pickle"
+            print(f"EPOCH {i + 1} SAVING TO '{filename}'")
+            pickle.dump(model, open(filename, "wb"))
+            continue
+        
+        assert training in (True, False)
+
         sum_sentences = 0
         epoch_length = len(train_dataloader if training else dev_dataloader)
         epoch_start_time = time()

@@ -1,6 +1,7 @@
 from os import path
 
 CONSTS = {
+    "model_dir": f"{path.dirname(__file__)}/../../models",
     "data_dir": f"{path.dirname(__file__)}/../../data",
     "none_label": "--", # tiger treebank uses "--" as an empty label
     "head_rules": { 'S': [('s','HD',[])],
