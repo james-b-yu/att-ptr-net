@@ -13,6 +13,8 @@ from ..nn import BiAffine
 
 from .words import WordEmbedding
 
+from ..util import BatchUnionFind
+
 class TigerModel(nn.Module):
     class WordEmbeddingParams(BaseModel):
         char_set: dict[str, int]
@@ -29,7 +31,7 @@ class TigerModel(nn.Module):
         num_layers: int = Field(default=1)
         dropout: float = Field(default=0.2)
 
-    def __init__(self, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, max_attachment_order: int, num_biaffine_attention_classes=2, num_constituent_labels=10):
+    def __init__(self, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, max_attachment_order: int, num_biaffine_attention_classes=2, num_constituent_labels=10, beam_size=10):
         super().__init__()
         self.dummy_param = nn.Parameter(torch.zeros(1), requires_grad=False) # to get self device
         
@@ -124,6 +126,8 @@ class TigerModel(nn.Module):
 
         self._reset_parameters()
 
+        self.beam_size = beam_size
+
     def _reset_parameters(self):
         nn.init.xavier_uniform_(self.enc_init_state)
 
@@ -214,18 +218,18 @@ class TigerModel(nn.Module):
 
         enc_out_attention = F.elu(self.enc_attention_mlp(enc_out_pad))
         dec_out_attention = F.elu(self.dec_attention_mlp(dec_out_pad))
-        self_attention = self.biaffine_attention(enc_out_attention, dec_out_attention) # size (B, T, T + 1). index by (batch_num, decoder_index, encoder_index + 1), which represents (batch_num, dependency_index, head_index + 1)
+        self_attention: torch.Tensor = self.biaffine_attention(enc_out_attention, dec_out_attention) # size (B, T, T + 1). index by (batch_num, decoder_index, encoder_index + 1), which represents (batch_num, dependency_index, head_index + 1)
 
         # TASK 2: predict ATTACHMENT labels
         # for batch b and dependency index j and head index i, constituent_lables[b, j, i] gives logits to classify the label of the dependency from word j to HEAD word i
         enc_out_label = F.elu(self.enc_label_mlp(enc_out_pad))
         dec_out_label = F.elu(self.dec_label_mlp(dec_out_pad))
-        constituent_labels = self.biaffine_constituent_classifier(enc_out_label, dec_out_label) # size (B, T, T + 1, num_constituent_labels). index by (batch_num, decoder_index, encoder_index + 1, label_index), which represents (batch_num, dependency_index, head_index + 1, label_index)
+        constituent_labels: torch.Tensor = self.biaffine_constituent_classifier(enc_out_label, dec_out_label) # size (B, T, T + 1, num_constituent_labels). index by (batch_num, decoder_index, encoder_index + 1, label_index), which represents (batch_num, dependency_index, head_index + 1, label_index)
 
         # TASK 3: predict attachment ORDER
         enc_out_attachment = F.elu(self.enc_attachment_mlp(enc_out_pad))
         dec_out_attachment = F.elu(self.dec_attachment_mlp(dec_out_pad))
-        attachment_orders = self.biaffine_attachment_classifier(enc_out_attachment, dec_out_attachment) # size (B, T, T + 1, max_attachment_order)
+        attachment_orders: torch.Tensor = self.biaffine_attachment_classifier(enc_out_attachment, dec_out_attachment) # size (B, T, T + 1, max_attachment_order)
 
         self._mask_out_(self_attention, lengths)
         self._mask_out_(constituent_labels, lengths)
@@ -268,3 +272,15 @@ class TigerModel(nn.Module):
         indices = ~torch.triu(torch.full((T + 1, T), True))[lengths] # type: ignore
         return indices
         
+
+    def find_tree(self, input: tuple[torch.Tensor, torch.Tensor], new_words_dict: dict[int, str] | None):
+        x, lengths = input
+        self_attention, constituent_labels, attachment_orders, indices = self.forward(input, new_words_dict)
+        # self_attention has size (B, T, T + 1)
+
+        B, T, *_ = self_attention.shape
+        uf = BatchUnionFind(B, self.beam_size, N=T + 1, device=self.dummy_param.device)
+
+        for t in range(T):
+            arc_probs = self_attention[:, t, :].log_softmax(dim=-1)
+            
