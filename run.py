@@ -16,6 +16,8 @@ from math import ceil, floor
 
 from torch.utils.tensorboard import SummaryWriter
 
+DEVICE_NAME = "cpu"
+
 (train_dataloader, train_new_words), (dev_dataloader, dev_new_words), _, character_set, character_flag_generators, inverse_word_dict, inverse_sym_dict = pickle.load(open("required_vars.pkl", "rb"))
 
 from time import time, strftime, gmtime
@@ -48,7 +50,7 @@ model = TigerModel(
         dec_attachment_mlp_dim=64,
         max_attachment_order=train_dataloader.dataset.attachment_orders.max() + 1
     )
-model = model.to(device="cuda") # type: ignore
+model = model.to(device=DEVICE_NAME) # type: ignore
 
 print(f"Model has {sum([p.numel() for p in model.parameters()])} parameters")
 
@@ -95,10 +97,10 @@ for i in range(num_epochs):
             batch_size = words.shape[0]
             sum_sentences += batch_size
 
-            words = words.to(device="cuda")
-            target_heads = target_heads.to(device="cuda")
-            target_syms = target_syms.to(device="cuda")
-            target_attachment_orders = target_attachment_orders.to(device="cuda")
+            words = words.to(device=DEVICE_NAME)
+            target_heads = target_heads.to(device=DEVICE_NAME)
+            target_syms = target_syms.to(device=DEVICE_NAME)
+            target_attachment_orders = target_attachment_orders.to(device=DEVICE_NAME)
 
             self_attention, labels, attachment_orders, indices = model((words, sentence_lengths), train_new_words if training else dev_new_words)
 

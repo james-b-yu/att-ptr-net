@@ -10,17 +10,17 @@ from .logger import model_logger
 import toytree
 
 class Terminal(BaseModel):
-    word: str = Field()
-    lemma: str = Field()
-    pos: str = Field()
-    morph: str = Field()
-    case: str = Field()
-    number: str = Field()
-    gender: str = Field()
-    person: str = Field()
-    degree: str = Field()
-    tense: str = Field()
-    mood: str = Field()
+    word: str = Field(default="?")
+    lemma: str = Field(default="?")
+    pos: str = Field(default="?")
+    morph: str = Field(default="?")
+    case: str = Field(default="?")
+    number: str = Field(default="?")
+    gender: str = Field(default="?")
+    person: str = Field(default="?")
+    degree: str = Field(default="?")
+    tense: str = Field(default="?")
+    mood: str = Field(default="?")
     
     idx: int = Field()
 
@@ -324,7 +324,7 @@ class ConstituentTree(BaseModel):
     
     def get_newick(self):
         return self._get_newick(self.root) + ";"
-    
+
     def draw(self):
         newick = self.get_newick()
         tree = toytree.tree(newick=newick, tree_format=8, quoted_node_names=True)
