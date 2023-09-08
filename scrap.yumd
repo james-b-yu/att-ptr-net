@@ -1,0 +1,8 @@
+# M-linear
+\[
+    R_{t_{1}, \ldots, t_{m}, n} = Z_{i_{1}, \ldots i_{m}, n} A^{1}_{t_{1} i_{1}} \cdots A^{m}_{t_{m} i_{m}}
+\]
+
+\[
+    R_{t n} &= T_{i n} A_{t i}
+\]
