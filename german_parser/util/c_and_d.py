@@ -325,6 +325,46 @@ class ConstituentTree(BaseModel):
     def get_newick(self):
         return self._get_newick(self.root) + ";"
 
+    def get_bracket(self, node: int|None=None, ignore_pre_terminal_sym: bool=False, ignore_non_terminal_sym: bool=False, ignore_all_syms: bool=False, zero_indexed=False):
+        """generate bracket notation for the tree
+
+        Args:
+            node (int | None, optional): starting node. Defaults to None to represent root node
+            ignore_pre_terminal_sym (bool, optional): replace all pre-terminal symbols with ?. Defaults to False.
+            ignore_non_terminal_sym (bool, optional): replace all non-pre-terminal symbols with ?. Defaults to False.
+            ignore_all_syms (bool, optional): replace all symbols with ?. Defaults to False.
+            zero_indexed (bool, optional): let leaf indices be 0-indexed. By default, they are 1-indexed. Defaults to False.
+
+        Returns:
+            _type_: _description_
+        """
+
+        offset = -1 if zero_indexed else 0
+
+        if node is None:
+            return self.get_bracket(node=self.root,
+                                    ignore_pre_terminal_sym=ignore_pre_terminal_sym,
+                                    ignore_non_terminal_sym=ignore_non_terminal_sym,
+                                    ignore_all_syms=ignore_all_syms,
+                                    zero_indexed=zero_indexed
+                                    )
+        
+        c = self.constituents[node]
+        if c.is_pre_terminal:
+            return f"({'?' if ignore_pre_terminal_sym or ignore_all_syms else c.sym} {c.id + offset}={self.terminals[node].word})"
+        
+        res = f"({'?' if ignore_non_terminal_sym or ignore_all_syms else c.sym} "
+        for child in c.children:
+            res += self.get_bracket(node=child,
+                                    ignore_pre_terminal_sym=ignore_pre_terminal_sym,
+                                    ignore_non_terminal_sym=ignore_non_terminal_sym,
+                                    ignore_all_syms=ignore_all_syms,
+                                    zero_indexed=zero_indexed
+                                    )
+            
+        res += ")"
+        return res
+
     def draw(self):
         newick = self.get_newick()
         tree = toytree.tree(newick=newick, tree_format=8, quoted_node_names=True)
