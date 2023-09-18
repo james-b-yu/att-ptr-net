@@ -1,6 +1,9 @@
-from typing import Any
+from collections import defaultdict
+from typing import Any, Sequence
 from pydantic import BaseModel, Field, root_validator
 import xml.etree.ElementTree as ET
+
+import torch
 
 from .const import CONSTS
 from .util import get_int_after_underscore, get_str_after_underscore, is_pairwise_disjoint, str_to_newick_str
@@ -325,7 +328,7 @@ class ConstituentTree(BaseModel):
     def get_newick(self):
         return self._get_newick(self.root) + ";"
 
-    def get_bracket(self, node: int|None=None, ignore_pre_terminal_sym: bool=False, ignore_non_terminal_sym: bool=False, ignore_all_syms: bool=False, zero_indexed=False):
+    def get_bracket(self, node: int|None=None, ignore_pre_terminal_sym: bool=False, ignore_non_terminal_sym: bool=False, ignore_all_syms: bool=False, zero_indexed=False, ignore_words=False):
         """generate bracket notation for the tree
 
         Args:
@@ -346,12 +349,13 @@ class ConstituentTree(BaseModel):
                                     ignore_pre_terminal_sym=ignore_pre_terminal_sym,
                                     ignore_non_terminal_sym=ignore_non_terminal_sym,
                                     ignore_all_syms=ignore_all_syms,
-                                    zero_indexed=zero_indexed
+                                    zero_indexed=zero_indexed,
+                                    ignore_words=ignore_words
                                     )
         
         c = self.constituents[node]
         if c.is_pre_terminal:
-            return f"({'?' if ignore_pre_terminal_sym or ignore_all_syms else c.sym} {c.id + offset}={self.terminals[node].word})"
+            return f"({'?' if ignore_pre_terminal_sym or ignore_all_syms else c.sym} {c.id + offset}={self.terminals[node].word if not ignore_words else 'Wort'})"
         
         res = f"({'?' if ignore_non_terminal_sym or ignore_all_syms else c.sym} "
         for child in c.children:
@@ -359,7 +363,8 @@ class ConstituentTree(BaseModel):
                                     ignore_pre_terminal_sym=ignore_pre_terminal_sym,
                                     ignore_non_terminal_sym=ignore_non_terminal_sym,
                                     ignore_all_syms=ignore_all_syms,
-                                    zero_indexed=zero_indexed
+                                    zero_indexed=zero_indexed,
+                                    ignore_words=ignore_words
                                     )
             
         res += ")"
@@ -399,6 +404,14 @@ class ConstituentTree(BaseModel):
     
     def get_non_pre_terminal_syms(self):
         return set([c.sym for _, c in self.constituents.items() if not c.is_pre_terminal])
+    
+    @classmethod
+    def from_d_tree(cls: type["ConstituentTree"], d: "DependencyTree") -> "ConstituentTree":
+        raise NotImplementedError("Please implement this method via monkey-patching.")
+    
+    @classmethod
+    def from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str]) -> "ConstituentTree":
+        raise NotImplementedError("Please implement this method via monkey-patching.")
 
 class Dependency(BaseModel):
     head: int # child
@@ -509,9 +522,48 @@ class DependencyTree(BaseModel):
 
     def get_words(self):
         return [self.terminals[k].word for k in sorted(self.terminals.keys())]
+    
+    @classmethod
+    def from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str]):
+        assert len(syms) == len(heads) and len(orders) == len(syms) and len(words) == len(orders)
+        num_words = len(heads)
+
+        modifiers: dict[int, dict[int, list[Dependency]]] = defaultdict(lambda: defaultdict(lambda x=None: []))
+        terminals: dict[int, Terminal] = {}
+
+        for child, (head, order, word, sym) in enumerate(zip(heads, orders, words, syms), start=1):
+            if isinstance(head, torch.Tensor):
+                head = int(head.item())
+            if isinstance(order, torch.Tensor):
+                order = int(order.item())
+
+            terminals[child] = Terminal(
+                idx=child,
+                word=word
+            )
+
+            # child with head of 0 is the root node of the d-tree; don't add it to modifiers dict
+            if head == 0:
+                continue
+            
+            modifiers[head][order].append(Dependency(head=head, modifier=child, sym=sym))
+
+        # with an ordering, all arcs must have the same symbol between dependency and head
+        for h in modifiers:
+            for o in modifiers[h]:
+                dependencies = modifiers[h][o]
+                closest_dependency_to_head = max(dependencies, key=lambda d: abs(d.head - d.modifier))
+                for d in dependencies:
+                    if d.sym != closest_dependency_to_head.sym:
+                        print(f"Warning: arc symbol from {d.modifier} to {d.head} ({d.sym}) does not match arc from closest dependency {closest_dependency_to_head.modifier} ({closest_dependency_to_head.sym}). Setting this to ({closest_dependency_to_head.sym})")
+                        d.sym = closest_dependency_to_head.sym
+                pass
+
+        return cls(modifiers=modifiers, terminals=terminals, num_words=num_words)
+
 
 @classmethod
-def d_to_c(cls: type[ConstituentTree], d: DependencyTree):
+def d_to_c(cls: type[ConstituentTree], d: DependencyTree) -> ConstituentTree:
     """
     Creates a constituent tree without unaries and without empty verbs
     """
@@ -614,4 +666,10 @@ def d_to_c(cls: type[ConstituentTree], d: DependencyTree):
 
     return res
 
-ConstituentTree.from_d_tree = d_to_c # for monkey-patching # type: ignore
+@classmethod
+def c_from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str]) -> ConstituentTree:
+    d_tree = DependencyTree.from_collection(heads, orders, words, syms)
+    return ConstituentTree.from_d_tree(d_tree)
+
+ConstituentTree.from_d_tree = d_to_c # type: ignore
+ConstituentTree.from_collection = c_from_collection # type: ignore

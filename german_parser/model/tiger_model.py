@@ -175,7 +175,7 @@ class TigerModel(nn.Module):
             new_words_dict (dict[int, str] | None): dictionary of new words. positive indices in new_words_dict correspond to negative indices in input[0] (data). If None, then all unknown words must be coded as 0
 
         Returns:
-            _type_: _description_
+            tuple[torch.Tensor, ...]: self_attention (B, T, T + 1), constituent_labels (B, T, num_constituent_labels), attachment_orders (B, T, max_attachment_order), indices (used to get a tensor of shape (N, *) by disgarding all unneeded elements in second-dimension of the previous tensors)
         """
 
         # transfer to current device. avoid making a copy if possible
@@ -274,13 +274,100 @@ class TigerModel(nn.Module):
         
 
     def find_tree(self, input: tuple[torch.Tensor, torch.Tensor], new_words_dict: dict[int, str] | None):
-        x, lengths = input
+        """input (tuple[torch.Tensor, torch.Tensor]): tuple of (data, sentence_lengths), where data is a tensor of size (B, T) and sentence_lengths is a tensor of size (B,). B is batch size, T is max(sentence_length) across all batches. The input must be sorted in descending order of sentence length
+            new_words_dict (dict[int, str] | None): dictionary of new words. positive indices in new_words_dict correspond to negative indices in input[0] (data). If None, then all unknown words must be coded as 0
+
+        Args:
+            input (tuple[torch.Tensor, torch.Tensor]): words, lengths
+            new_words_dict (dict[int, str] | None): _description_
+        """    
+
+
+        _, lengths = input
         self_attention, constituent_labels, attachment_orders, indices = self.forward(input, new_words_dict)
         # self_attention has size (B, T, T + 1)
+        # NOTE: self_attention indices are 1-indexed. index 0 corresponds to virtual root of D-tree (which is different from virtual root of C-tree)
 
         B, T, *_ = self_attention.shape
         uf = BatchUnionFind(B, self.beam_size, N=T + 1, device=self.dummy_param.device)
 
+        # initialise beams by finding top-K most probable root nodes
+        best_roots = self_attention[:, :, 0].topk(k=self.beam_size, dim=-1)
+
+        current_root_indices = best_roots.indices # (B, K)
+        joint_logits = best_roots.values # (B, K)
+
+        edges = torch.zeros(B, self.beam_size, T, dtype=torch.long, device=self.dummy_param.device) # (B, K, T); m[b, k, t - 1] is the 1-indexed parent of 1-indexed node t, in batch b, beam k
+
+        same_as_beams = torch.arange(self.beam_size, dtype=torch.long, device=self.dummy_param.device).repeat(B, 1) # m[b, k] == 1 if beam k in batch b is equal to beam 1 in batch b. allows us to keep track of duplicates. duplicates are when m[b, k] != k. Beams begin unique because the top-k best roots as initialised above will be unique
+        beam_check = torch.arange(self.beam_size, dtype=torch.long, device=self.dummy_param.device) # used multiple times
+        beam_check_repeated = beam_check.repeat(B, 1)
+        parents = torch.arange(0, T + 1, 1, device=self.dummy_param.device, dtype=torch.long).repeat(B, self.beam_size, 1) # (B, K, T + 1), where m[b, k, t] = t to represent the index of each parent # these same indices are used multiple times
+
+        def beams_are_unique():
+            return same_as_beams == beam_check_repeated # return where m[b, k] == same_as_beams[b, k] != k
+
+
         for t in range(T):
-            arc_probs = self_attention[:, t, :].log_softmax(dim=-1)
+            relevant_batches = t < lengths # used for updating the final arcs. otherwise, we get nans in batch b if t >= sentence_length[b]
+
+            arc_probs = self_attention[:, t, :].log_softmax(dim=-1) # (B, T + 1)
+
+            candidate_joint_logits = joint_logits[:, :, None] + arc_probs[:, None, :] # (B, K, T + 1); the heuristic we would like to maximise
+
+            children = torch.tensor(t + 1, device=self.dummy_param.device) # all batches and beams share the same child index (1-indexed)
+
+            # prevent cycles
+            disable_mask = uf.is_same_set(children.expand_as(parents), parents) # (B, K, T + 1); m[b, k, s + 1] is true if in batch b, beam k, joining child (t + 1) and parent (s + 1) would lead to a cycle
+            # avoid setting words as head that are beyond the end of the sentence
+            disable_mask[:, :, 1:] |= ~indices.unsqueeze(1).to(device=self.dummy_param.device) 
+            # force beams to be unique
+            disable_mask |= ~beams_are_unique()[:, :, None]
+            # force root indices to be enabled
+            disable_mask[:, :, 1:][current_root_indices == t] = True # for the batches and beams where t would be a root node, t's parent must be 0 (cannot be 1:)
+            # prevent other indices from becoming root
+            disable_mask[:, :, 0][current_root_indices != t] = True
+            candidate_joint_logits[disable_mask] = -torch.inf # these indices can never be a maximiser
+
+            flattened_top_candidate_idx = candidate_joint_logits.flatten(-2, -1).topk(k=self.beam_size, dim=-1).indices # (B, K) in range [0, (K * T + 1)); for each batch, find top 10 best performing parent-beam combinations
             
+            top_parents = parents.flatten(-2, -1).gather(index=flattened_top_candidate_idx, dim=-1) # (B, K); for each batch and beam, get the 1-indexed id of the parent we want to attach
+
+            batch_names = beam_check.view(1, -1, 1).expand(B, -1, T + 1).flatten(-2, -1) # (B, K, T + 1); m[b, k, s] = k for all b, s, k
+            used_batches = batch_names.gather(index=flattened_top_candidate_idx, dim=-1) # (B, K) where each element is in the range [0, K). m[b, k] tells you what the kth new beam should be
+
+            same_as_beams = used_batches # we have copied over these beams, so for now, these beams must be equal
+
+            new_data = uf.data.gather(index=used_batches.unsqueeze(-1).expand_as(uf.data), dim=1)
+            new_rank = uf.rank.gather(index=used_batches.unsqueeze(-1).expand_as(uf.rank), dim=1)
+            new_edges = edges.gather(index=used_batches.unsqueeze(-1).expand_as(edges), dim=1)
+            new_joint_logits = candidate_joint_logits.flatten(-2, -1).gather(index=flattened_top_candidate_idx, dim=-1)
+            new_roots = current_root_indices.gather(index=used_batches, dim=-1)
+            
+
+            uf.data[relevant_batches] = new_data[relevant_batches]
+            uf.rank[relevant_batches] = new_rank[relevant_batches]
+            edges[relevant_batches] = new_edges[relevant_batches]
+            joint_logits[relevant_batches] = new_joint_logits[relevant_batches]
+            current_root_indices[relevant_batches] = new_roots[relevant_batches]
+
+            uf.union(children.expand_as(top_parents), top_parents)
+
+            edges[:, :, t] = top_parents
+            new_unique_beams = top_parents.gather(index=same_as_beams, dim=-1) != top_parents  # indicates the beams that have BECOME unqiue: given any batch b, suppose beam j was a copy of beam k. suppose the new parent for beam j is different to the new parent of beam k. then m[b, j] = True
+            same_as_beams[new_unique_beams] = beam_check_repeated[new_unique_beams]
+
+            pass
+
+        num_labels = constituent_labels.shape[-1]
+        num_attachment_orders = attachment_orders.shape[-1]
+
+        best_edges = edges[torch.arange(edges.shape[0]), joint_logits.argmax(dim=-1)] # (B, T) containing elements in range [0, T + 1), where m[b, t - 1] denotes the 1-indexed parent of 1-indexed node t
+
+        label_logits_best_edges = constituent_labels.gather(index=best_edges[:, :, None, None].expand(-1, -1, -1, num_labels), dim=2).squeeze(2)
+        attachment_logits_best_edges = attachment_orders.gather(index=best_edges[:, :, None, None].expand(-1, -1, -1, num_attachment_orders), dim=2).squeeze(2)
+
+        labels_best_edges = label_logits_best_edges.argmax(-1)
+        attachment_orders_best_edges = attachment_logits_best_edges.argmax(-1)
+
+        return best_edges, labels_best_edges, attachment_orders_best_edges, (edges, joint_logits)
