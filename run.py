@@ -1,3 +1,6 @@
+# import os
+# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -72,9 +75,9 @@ model = TigerModel(
 
     enc_attachment_mlp_dim=128,
     dec_attachment_mlp_dim=64,
-    max_attachment_order=train_dataloader.dataset.attachment_orders.max() + 1
+    max_attachment_order=max(train_dataloader.dataset.attachment_orders.max(), dev_dataloader.dataset.attachment_orders.max()) + 1
     )
-model = model.to(device=DEVICE_NAME) # type: ignore
+model = model.to(device=DEVICE_NAME, dtype=torch.half) # type: ignore
 
 print(f"Model has {sum([p.numel() for p in model.parameters()])} parameters")
 
@@ -174,43 +177,54 @@ for i in range(num_epochs):
 
             loss = (loss_attention + loss_labels + loss_poses + loss_orders + loss_morph)
 
-            
-            epoch_attention_loss += loss_attention.item()
-            epoch_label_loss += loss_labels.item()
-            epoch_pos_loss += loss_poses.item()
-            epoch_order_loss += loss_orders.item()
-            epoch_total_loss += loss.item()
-
-            progress = sum_sentences / (train_total_sentences if training else dev_total_sentences)
-            eta_seconds = round((time() - epoch_start_time) * (1 - progress) / progress)
-            eta_time = strftime("%H:%M", gmtime(time() + eta_seconds))
-            eta_str = timedelta(seconds=eta_seconds)
-            speed = round(sum_sentences / (time() - epoch_start_time))
-
-            print(f"EPOCH {i + 1} {'TRN' if training else 'DEV'} {get_progress_bar(progress, 20)} ({100 * progress: .2f}%) ATTENTION {loss_attention.item():.6f} LABEL {loss_labels.item():.6f} POS {loss_poses.item():.6f} ORDERS {loss_orders.item():.6f} MORPH {loss_morph.item():.6f} TOTAL {loss.item():.6f} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)")
-
-
-            for name, iteration in [(f"epoch_{i + 1}_{'trn' if training else 'dev'}", j), (f"all_epochs_{'trn' if training else 'dev'}", total_iteration_train if training else total_iteration_dev)]:
-                summary_writer.add_scalars(name, {
-                    "loss_total": loss,
-                    "loss_attention": loss_attention,
-                    "loss_poses": loss_poses,
-                    "loss_orders": loss_orders,
-                    "loss_labels": loss_labels
-                }, iteration)
-
-
+            # perform backpropagation
             if training:
-                loss.backward()
+                with torch.no_grad():
+                    loss.backward()
+                    
                 utils.clip_grad_norm_(model.parameters(), max_norm=1)
                 optim.step()
 
                 total_iteration_train += 1
             else:
                 total_iteration_dev += 1
+            
+            # detach and empty cache
+            loss_attention.detach_()
+            loss_labels.detach_()
+            loss_poses.detach_()
+            loss_orders.detach_()
+            loss_morph.detach_()
+            loss.detach_()
+            torch.cuda.empty_cache()
 
-            # now perform f1 evaluation
+            # save metrics
             with torch.no_grad():
+                epoch_attention_loss += loss_attention.item()
+                epoch_label_loss += loss_labels.item()
+                epoch_pos_loss += loss_poses.item()
+                epoch_order_loss += loss_orders.item()
+                epoch_total_loss += loss.item()
+
+                progress = sum_sentences / (train_total_sentences if training else dev_total_sentences)
+                eta_seconds = round((time() - epoch_start_time) * (1 - progress) / progress)
+                eta_time = strftime("%H:%M", gmtime(time() + eta_seconds))
+                eta_str = timedelta(seconds=eta_seconds)
+                speed = round(sum_sentences / (time() - epoch_start_time))
+
+                print(f"EPOCH {i + 1} {'TRN' if training else 'DEV'} {get_progress_bar(progress, 20)} ({100 * progress: .2f}%) ATTENTION {loss_attention.item():.6f} LABEL {loss_labels.item():.6f} POS {loss_poses.item():.6f} ORDERS {loss_orders.item():.6f} MORPH {loss_morph.item():.6f} TOTAL {loss.item():.6f} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)")
+
+
+                for name, iteration in [(f"epoch_{i + 1}_{'trn' if training else 'dev'}", j), (f"all_epochs_{'trn' if training else 'dev'}", total_iteration_train if training else total_iteration_dev)]:
+                    summary_writer.add_scalars(name, {
+                        "loss_total": loss,
+                        "loss_attention": loss_attention,
+                        "loss_poses": loss_poses,
+                        "loss_orders": loss_orders,
+                        "loss_labels": loss_labels
+                    }, iteration)
+
+                # now perform f1 evaluation
                 rate = CONSTS["train_tree_rate"] if training else CONSTS["dev_tree_rate"]
                 if random.random() <= rate: # only generate trees for this batch (100 * rate) % of the time
                     best_edges, labels_best_edges, attachment_orders_best_edges, (edges, joint_logits) = model._find_tree(sentence_lengths, self_attention, labels, attachment_orders, indices)
@@ -241,9 +255,7 @@ for i in range(num_epochs):
                         except Exception as e:
                             pass
 
-            torch.cuda.empty_cache()
-
-
+        # calculate epoch-level metrics
         epoch_attention_loss /= epoch_length
         epoch_label_loss     /= epoch_length
         epoch_pos_loss       /= epoch_length
