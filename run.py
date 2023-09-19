@@ -83,7 +83,7 @@ print(f"Model has {sum([p.numel() for p in model.parameters()])} parameters")
 
 optim = torch.optim.SGD(model.parameters(), lr=1e-1) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 
-num_epochs = 1
+num_epochs = 100
 
 train_total_sentences = len(train_dataloader.dataset)
 dev_total_sentences = len(dev_dataloader.dataset)
@@ -107,7 +107,6 @@ for i in range(num_epochs):
         if training is None:
             # save the model
             filename = f"{CONSTS['model_dir']}/{get_filename(i)}.pickle"
-            print(f"EPOCH {i + 1} SAVING TO '{filename}'")
             pickle.dump(model, open(filename, "wb"))
             continue
 
@@ -136,13 +135,13 @@ for i in range(num_epochs):
 
         input: tuple[torch.Tensor, ...]
 
+        optim.zero_grad(set_to_none=True)
         for j, input in (enumerate(train_dataloader) if training else enumerate(dev_dataloader)):
             if j > MAX_ITER:
                 continue
 
             if training:
                 model.train()
-                optim.zero_grad()
             else:
                 model.eval()
 
@@ -179,25 +178,24 @@ for i in range(num_epochs):
 
             # perform backpropagation
             if training:
-                with torch.no_grad():
-                    loss.backward()
-                    
+                loss.backward()
                 utils.clip_grad_norm_(model.parameters(), max_norm=1)
                 optim.step()
+                optim.zero_grad(set_to_none=True)
 
                 total_iteration_train += 1
+
+                # detach and empty cache
+                loss_attention.detach_()
+                loss_labels.detach_()
+                loss_poses.detach_()
+                loss_orders.detach_()
+                loss_morph.detach_()
+                loss.detach_()
             else:
                 total_iteration_dev += 1
-            
-            # detach and empty cache
-            loss_attention.detach_()
-            loss_labels.detach_()
-            loss_poses.detach_()
-            loss_orders.detach_()
-            loss_morph.detach_()
-            loss.detach_()
-            torch.cuda.empty_cache()
 
+            torch.cuda.empty_cache()
             # save metrics
             with torch.no_grad():
                 epoch_attention_loss += loss_attention.item()
@@ -212,7 +210,7 @@ for i in range(num_epochs):
                 eta_str = timedelta(seconds=eta_seconds)
                 speed = round(sum_sentences / (time() - epoch_start_time))
 
-                print(f"EPOCH {i + 1} {'TRN' if training else 'DEV'} {get_progress_bar(progress, 20)} ({100 * progress: .2f}%) ATTENTION {loss_attention.item():.6f} LABEL {loss_labels.item():.6f} POS {loss_poses.item():.6f} ORDERS {loss_orders.item():.6f} MORPH {loss_morph.item():.6f} TOTAL {loss.item():.6f} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)")
+                print(f"EPOCH {i + 1:5d} {'TRN' if training else 'DEV'} {get_progress_bar(progress, 20)} ({100 * progress:6.2f}%) ATTENTION {loss_attention.item():8.6} LABEL {loss_labels.item():8.6} POS {loss_poses.item():8.6} ORDERS {loss_orders.item():8.6} MORPH {loss_morph.item():8.6} TOTAL {loss.item():8.6} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)", end="\r", flush=True)
 
 
                 for name, iteration in [(f"epoch_{i + 1}_{'trn' if training else 'dev'}", j), (f"all_epochs_{'trn' if training else 'dev'}", total_iteration_train if training else total_iteration_dev)]:
@@ -331,3 +329,5 @@ for i in range(num_epochs):
                 ]}, i + 1)
             
             pass
+
+print("\n", flush=True)
