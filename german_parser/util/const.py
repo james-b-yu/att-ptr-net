@@ -1,7 +1,11 @@
 from os import path
 
 CONSTS = {
+    "train_tree_rate": 0.1,
+    "discodop_config_file": f"{path.dirname(__file__)}/../../proper.prm",
+    "dev_tree_rate": 1,
     "model_dir": f"{path.dirname(__file__)}/../../models",
+    "eval_dir": f"{path.dirname(__file__)}/../../eval",
     "data_dir": f"{path.dirname(__file__)}/../../data",
     "none_label": "--", # tiger treebank uses "--" as an empty label
     "head_rules": { 'S': [('s','HD',[])],

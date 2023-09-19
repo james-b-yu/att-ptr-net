@@ -285,6 +285,10 @@ class TigerModel(nn.Module):
 
         _, lengths = input
         self_attention, constituent_labels, attachment_orders, indices = self.forward(input, new_words_dict)
+
+        return self._find_tree(lengths, self_attention, constituent_labels, attachment_orders, indices)
+    
+    def _find_tree(self, lengths: torch.Tensor, self_attention: torch.Tensor, constituent_labels: torch.Tensor, attachment_orders: torch.Tensor, indices: torch.Tensor):
         # self_attention has size (B, T, T + 1)
         # NOTE: self_attention indices are 1-indexed. index 0 corresponds to virtual root of D-tree (which is different from virtual root of C-tree)
 

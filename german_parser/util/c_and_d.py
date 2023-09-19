@@ -416,7 +416,7 @@ class ConstituentTree(BaseModel):
 class Dependency(BaseModel):
     head: int # child
     modifier: int # parent
-    sym: str = Field(..., regex=r"^[A-Z]+$")
+    sym: str = Field(..., regex=r"^[ -~]+$")
 
 
 class DependencyTree(BaseModel):
@@ -470,7 +470,6 @@ class DependencyTree(BaseModel):
 
         return res
         
-
     def get_words_as_set(self):
         all_words: set[int] = set()
 
@@ -523,6 +522,15 @@ class DependencyTree(BaseModel):
     def get_words(self):
         return [self.terminals[k].word for k in sorted(self.terminals.keys())]
     
+    def get_mma_plot(self):
+        edges = []
+        for v in self.modifiers.values():
+            for order, key in enumerate(sorted(v.keys())):
+                for arc in v[key]:
+                    edges.append(f"{{{arc.head}->{arc.modifier}, \"{arc.sym}#{order}\"}}")
+
+        return f"TreePlot[{{{', '.join(edges)}}}, Top, 0, VertexLabels -> Automatic, DirectedEdges -> True]"
+
     @classmethod
     def from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str]):
         assert len(syms) == len(heads) and len(orders) == len(syms) and len(words) == len(orders)

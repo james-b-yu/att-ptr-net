@@ -11,14 +11,24 @@ from string import punctuation
 import torch.nn.utils.clip_grad as utils
 from german_parser.util import get_progress_bar
 from german_parser.util.const import CONSTS
+from german_parser.util.c_and_d import ConstituentTree, DependencyTree
+
+import random
+random.seed()
+
+import re
+
+import subprocess
 
 from math import ceil, floor
 
 from torch.utils.tensorboard import SummaryWriter
 
-DEVICE_NAME = "cpu"
+DEVICE_NAME = "cuda"
 
 (train_dataloader, train_new_words), (dev_dataloader, dev_new_words), _, character_set, character_flag_generators, inverse_word_dict, inverse_sym_dict = pickle.load(open("required_vars.pkl", "rb"))
+
+MAX_ITER = float("inf")
 
 from time import time, strftime, gmtime
 from datetime import timedelta
@@ -66,14 +76,27 @@ total_iteration_dev = 0
 
 filename_prefix = f"tiger_model_{strftime('%Y_%m_%d-%I_%M_%S_%p')}"
 
+def get_filename(epoch: int):
+    """get filename of model (without extension)
+
+    Args:
+        epoch (int): 0-indexed epoch number
+    """
+
+    return f"{filename_prefix}_epoch_{epoch + 1}"
+
 for i in range(num_epochs):
     for training in (True, None, False):
         if training is None:
             # save the model
-            filename = f"{CONSTS['model_dir']}/{filename_prefix}_epoch_{i + 1}.pickle"
+            filename = f"{CONSTS['model_dir']}/{get_filename(i)}.pickle"
             print(f"EPOCH {i + 1} SAVING TO '{filename}'")
             pickle.dump(model, open(filename, "wb"))
             continue
+
+        if training == "f1":
+            # calculate f1 scores
+            pass
         
         assert training in (True, False)
 
@@ -86,7 +109,17 @@ for i in range(num_epochs):
         epoch_order_loss = 0
         epoch_total_loss = 0
 
+        brackets = []
+        brackets_structure = []
+        t_brackets = []
+        t_brackets_structure = []
+
+        new_words_dict = train_new_words if training else dev_new_words
+
         for j, input in (enumerate(train_dataloader) if training else enumerate(dev_dataloader)):
+            if j > MAX_ITER:
+                continue
+
             if training:
                 model.train()
                 optim.zero_grad()
@@ -102,7 +135,7 @@ for i in range(num_epochs):
             target_syms = target_syms.to(device=DEVICE_NAME)
             target_attachment_orders = target_attachment_orders.to(device=DEVICE_NAME)
 
-            self_attention, labels, attachment_orders, indices = model((words, sentence_lengths), train_new_words if training else dev_new_words)
+            self_attention, labels, attachment_orders, indices = model((words, sentence_lengths), new_words_dict)
 
             loss_attention = F.cross_entropy(self_attention[indices], target_heads[indices])
             loss_labels    = F.cross_entropy(labels[indices, target_heads[indices]], target_syms[indices])
@@ -143,6 +176,38 @@ for i in range(num_epochs):
             else:
                 total_iteration_dev += 1
 
+            # now perform f1 evaluation
+            with torch.no_grad():
+                rate = CONSTS["train_tree_rate"] if training else CONSTS["dev_tree_rate"]
+                if random.random() <= rate: # only generate trees for this batch (100 * rate) % of the time
+                    best_edges, labels_best_edges, attachment_orders_best_edges, (edges, joint_logits) = model._find_tree(sentence_lengths, self_attention, labels, attachment_orders, indices)
+
+                    for s_num in range(batch_size):
+                        try:
+                            tree_words = words[s_num, :sentence_lengths[s_num]].to("cpu")
+
+                            tree_heads = best_edges[s_num, :sentence_lengths[s_num]].to("cpu")
+                            tree_syms = labels_best_edges[s_num, :sentence_lengths[s_num]].to("cpu")
+                            tree_attachment_orders = attachment_orders_best_edges[s_num, :sentence_lengths[s_num]].to("cpu")
+
+                            t_tree_heads = target_heads[s_num, :sentence_lengths[s_num]].to("cpu")
+                            t_tree_syms = target_syms[s_num, :sentence_lengths[s_num]].to("cpu")
+                            t_tree_attachment_orders = target_attachment_orders[s_num, :sentence_lengths[s_num]].to("cpu")
+
+                            the_sentence = [inverse_word_dict[w.item()] if w > 0 else new_words_dict[-w.item()] for w in tree_words]
+
+                            c_tree = ConstituentTree.from_collection(heads=tree_heads, syms=[inverse_sym_dict[l.item()] for l in tree_syms], orders=tree_attachment_orders, words=the_sentence)
+                            t_c_tree = ConstituentTree.from_collection(heads=t_tree_heads, syms=[inverse_sym_dict[l.item()] for l in t_tree_syms], orders=t_tree_attachment_orders, words=the_sentence)
+
+                            brackets.append(c_tree.get_bracket(zero_indexed=True, ignore_words=True))
+                            brackets_structure.append(c_tree.get_bracket(ignore_all_syms=True, zero_indexed=True, ignore_words=True))
+
+                            t_brackets.append(t_c_tree.get_bracket(zero_indexed=True, ignore_words=True))
+                            t_brackets_structure.append(t_c_tree.get_bracket(ignore_all_syms=True, zero_indexed=True, ignore_words=True))
+                            
+                        except Exception as e:
+                            pass
+
             torch.cuda.empty_cache()
 
 
@@ -157,3 +222,65 @@ for i in range(num_epochs):
             "order": epoch_order_loss,
             "total": epoch_total_loss
         }, i + 1)
+
+        brackets_filename = f"{CONSTS['eval_dir']}/{get_filename(i)}.txt"
+        brackets_gold_filename = f"{CONSTS['eval_dir']}/{get_filename(i)}_gold.txt"
+        brackets_structure_filename = f"{CONSTS['eval_dir']}/{get_filename(i)}_structure.txt"
+        brackets_structure_gold_filename = f"{CONSTS['eval_dir']}/{get_filename(i)}_gold_structure.txt"
+
+        open(brackets_filename, "w").write("\n".join(brackets))
+        open(brackets_gold_filename, "w").write("\n".join(t_brackets))
+
+        open(brackets_structure_filename, "w").write("\n".join(brackets_structure))
+        open(brackets_structure_gold_filename, "w").write("\n".join(t_brackets_structure))
+
+        if brackets:
+            brackets_res = subprocess.run(["discodop",
+                                           "eval",
+                                           brackets_gold_filename,
+                                           brackets_filename,
+                                           "--fmt=discbracket",
+                                           CONSTS["discodop_config_file"]
+                                           ],
+                                        capture_output=True,
+                                        text=True).stdout
+            brackets_structure_res = subprocess.run(["discodop",
+                                                     "eval",
+                                                     brackets_structure_gold_filename,
+                                                     brackets_structure_filename,
+                                                     "--fmt=discbracket",
+                                                     CONSTS["discodop_config_file"]
+                                                     ],
+                                                capture_output=True,
+                                                text=True).stdout
+            disc_brackets_res = subprocess.run(["discodop",
+                                           "eval",
+                                           brackets_gold_filename,
+                                           brackets_filename,
+                                           "--fmt=discbracket",
+                                           "--disconly",
+                                           CONSTS["discodop_config_file"]
+                                           ],
+                                        capture_output=True,
+                                        text=True).stdout
+            disc_brackets_structure_res = subprocess.run(["discodop",
+                                                     "eval",
+                                                     brackets_structure_gold_filename,
+                                                     brackets_structure_filename,
+                                                     "--fmt=discbracket",
+                                                     "--disconly",
+                                                     CONSTS["discodop_config_file"]
+                                                     ],
+                                                capture_output=True,
+                                                text=True).stdout
+
+            summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_f1", {
+                label: float(re.search(r".*labeled f-measure.*?([\d.]|nan)+.*?([\d.]+|nan)", res).groups()[1])
+                for (label, res) in [
+                    ("full", brackets_res),
+                    ("structure", brackets_structure_res),
+                    ("full_disc", disc_brackets_res),
+                    ("structure_disc", disc_brackets_structure_res)
+                ]}, i + 1)
+            
+            pass
