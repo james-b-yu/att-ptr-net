@@ -299,11 +299,10 @@ class TigerModel(nn.Module):
             lengths (torch.Tensor): sorted tensor in descending order where len(lengths) = B and lengths[0] = T
         """
         B, T, *_ = out.shape
-        dependency_index_mask = torch.triu(torch.full((T + 1, T), True))[lengths].unsqueeze(-1).repeat(1, 1, T + 1) # (B, T, T + 1)
-        out[dependency_index_mask] = -torch.inf
+        dependency_index_mask = torch.triu(torch.full((T + 1, T), True))[lengths].unsqueeze(-1).expand(-1, -1, T + 1) # (B, T, T + 1)
+        head_index_mask = torch.triu(torch.full((T + 2, T + 1), True))[lengths + 1].unsqueeze(-2).expand(-1, T, -1) # (B, T, T + 1)
 
-        head_index_mask = torch.triu(torch.full((T + 2, T + 1), True))[lengths + 1].unsqueeze(-2).repeat(1, T, 1) # (B, T, T + 1)
-        out[head_index_mask] = -torch.inf
+        out[dependency_index_mask | head_index_mask].fill_(-torch.inf)
 
     def _get_batch_indices(self, lengths: torch.Tensor):
         """Get indices for a given set of sentence lengths.

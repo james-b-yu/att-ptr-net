@@ -106,6 +106,7 @@ class WordCNN(nn.Module):
 
         unknown_words_locs = unknown_words.nonzero(as_tuple=False)
 
+        # TODO: speed this section up!
         for loc in unknown_words_locs:
             if loc.numel() == 0:
                 continue
