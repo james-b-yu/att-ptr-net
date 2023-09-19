@@ -302,7 +302,7 @@ class TigerModel(nn.Module):
         dependency_index_mask = torch.triu(torch.full((T + 1, T), True))[lengths].unsqueeze(-1).expand(-1, -1, T + 1) # (B, T, T + 1)
         head_index_mask = torch.triu(torch.full((T + 2, T + 1), True))[lengths + 1].unsqueeze(-2).expand(-1, T, -1) # (B, T, T + 1)
 
-        out[dependency_index_mask | head_index_mask].fill_(-torch.inf)
+        out[dependency_index_mask | head_index_mask] = -torch.inf
 
     def _get_batch_indices(self, lengths: torch.Tensor):
         """Get indices for a given set of sentence lengths.
