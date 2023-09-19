@@ -1,6 +1,9 @@
 from os import path
 
 CONSTS = {
+    "morph_na": "--",
+    "morph_props": ["case", "number", "gender", "person", "degree", "tense", "mood"],
+    "pos_unk_pos": "<UNKPOS>",
     "train_tree_rate": 0.1,
     "discodop_config_file": f"{path.dirname(__file__)}/../../proper.prm",
     "dev_tree_rate": 1,

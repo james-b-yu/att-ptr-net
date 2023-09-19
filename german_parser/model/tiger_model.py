@@ -6,10 +6,10 @@ import torch.nn.functional as F
 
 from pydantic import BaseModel, Field
 from collections.abc import Callable
-from typing import Literal
+from typing import Literal, Sequence
 
 from ..nn import LSTM, LSTMSkip
-from ..nn import BiAffine
+from ..nn import BiAffine, MAffine
 
 from .words import WordEmbedding
 
@@ -31,7 +31,7 @@ class TigerModel(nn.Module):
         num_layers: int = Field(default=1)
         dropout: float = Field(default=0.2)
 
-    def __init__(self, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, max_attachment_order: int, num_biaffine_attention_classes=2, num_constituent_labels=10, beam_size=10):
+    def __init__(self, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, enc_pos_mlp_dim: int, dec_pos_mlp_dim: int, enc_morph_mlp_dim: int, dec_morph_mlp_dim: int, max_attachment_order: int, num_constituent_labels: int, num_terminal_poses: int, morph_prop_classes: Sequence[int], morph_pos_interaction_dim: int, num_biaffine_attention_classes=2, beam_size=10):
         super().__init__()
         self.dummy_param = nn.Parameter(torch.zeros(1), requires_grad=False) # to get self device
         
@@ -91,14 +91,33 @@ class TigerModel(nn.Module):
         self.enc_attachment_mlp_dim = enc_attachment_mlp_dim
         self.dec_attachment_mlp_dim = dec_attachment_mlp_dim
 
+        self.enc_pos_mlp_dim = enc_pos_mlp_dim
+        self.dec_pos_mlp_dim = dec_pos_mlp_dim
+
+        self.enc_morph_mlp_dim = enc_morph_mlp_dim
+        self.dec_morph_mlp_dim = dec_morph_mlp_dim
+
         self.enc_attention_mlp = nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_attention_mlp_dim)
         self.dec_attention_mlp = nn.Linear(self.dec_lstm_params.hidden_size, self.dec_attention_mlp_dim)
 
         self.enc_label_mlp = nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_label_mlp_dim)
         self.dec_label_mlp = nn.Linear(self.dec_lstm_params.hidden_size, self.dec_label_mlp_dim)
 
+        self.enc_pos_mlp = nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_pos_mlp_dim)
+        self.dec_pos_mlp = nn.Linear(self.dec_lstm_params.hidden_size, self.dec_pos_mlp_dim)
+
+
         self.enc_attachment_mlp = nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_attachment_mlp_dim)
         self.dec_attachment_mlp = nn.Linear(self.dec_lstm_params.hidden_size, self.dec_attachment_mlp_dim)
+
+        # define morphology mlps
+        self.morph_prop_classes = morph_prop_classes
+        self.enc_morph_mlps = nn.ModuleList([nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_morph_mlp_dim) for _ in self.morph_prop_classes])
+        self.dec_morph_mlps = nn.ModuleList([nn.Linear(self.dec_lstm_params.hidden_size, self.dec_morph_mlp_dim) for _ in self.morph_prop_classes])
+
+        # define morphology part-of-speech interaction parameter
+        self.morph_pos_interaction_dim = morph_pos_interaction_dim
+        self.morph_pos_interactor = nn.Parameter(torch.zeros(1, num_terminal_poses, self.morph_pos_interaction_dim))
 
         # define biaffine layer for attention
         self.biaffine_attention = BiAffine(
@@ -124,9 +143,24 @@ class TigerModel(nn.Module):
             include_attention=False
         )
 
-        self._reset_parameters()
+        # define biaffine layer for classification of terminal parts-of-speech
+        self.biaffine_terminal_classifier = BiAffine(
+            num_classes=num_terminal_poses,
+            enc_input_size=self.enc_pos_mlp_dim,
+            dec_input_size=self.dec_pos_mlp_dim,
+            include_attention=False
+        )
+
+        # TODO: experiment with a 4-affine layer
+        # define 3-affine layer for morphologies
+        self.affine_morph_classifiers = nn.ModuleList([
+            MAffine(n, self.dec_morph_mlp_dim, self.enc_morph_mlp_dim, self.morph_pos_interaction_dim)
+            for n in self.morph_prop_classes
+        ])
 
         self.beam_size = beam_size
+
+        self._reset_parameters()
 
     def _reset_parameters(self):
         nn.init.xavier_uniform_(self.enc_init_state)
@@ -231,15 +265,31 @@ class TigerModel(nn.Module):
         dec_out_attachment = F.elu(self.dec_attachment_mlp(dec_out_pad))
         attachment_orders: torch.Tensor = self.biaffine_attachment_classifier(enc_out_attachment, dec_out_attachment) # size (B, T, T + 1, max_attachment_order)
 
+        # TASK 4: predict POS
+        enc_out_pos = F.elu(self.enc_pos_mlp(enc_out_pad))
+        dec_out_pos = F.elu(self.dec_pos_mlp(dec_out_pad))
+        poses: torch.Tensor = self.biaffine_terminal_classifier(enc_out_pos, dec_out_pos)
+
+        # TASK 5: predict MORPHs
+        morphs: list[torch.Tensor] = []
+        for i in range(len(self.morph_prop_classes)):
+            enc_out_morph = F.elu(self.enc_morph_mlps[i](enc_out_pad))
+            dec_out_morph = F.elu(self.dec_morph_mlps[i](dec_out_pad))
+            morph = self.affine_morph_classifiers[i](dec_out_morph, enc_out_morph, self.morph_pos_interactor.expand(B, -1, -1), num_batch_dims=1)
+            self._mask_out_(morph, lengths)
+            morphs.append(morph)
+            pass
+
         self._mask_out_(self_attention, lengths)
         self._mask_out_(constituent_labels, lengths)
         self._mask_out_(attachment_orders, lengths)
+        self._mask_out_(poses, lengths)
 
-        # TODO: TASK 4: predict DEPENDENCY labels (according to GM 2022, this will improve overall performance in a multitask setting)
+        # TODO: TASK -1: predict DEPENDENCY labels (according to GM 2022, this will improve overall performance in a multitask setting)
 
         indices = self._get_batch_indices(lengths)
 
-        return self_attention, constituent_labels, attachment_orders, indices
+        return self_attention, constituent_labels, poses, attachment_orders, *morphs, indices
 
     def _mask_out_(self, out: torch.Tensor, lengths: torch.Tensor):
         """mask out unneeded output elements IN PLACE, given sentence lengths
@@ -284,7 +334,7 @@ class TigerModel(nn.Module):
 
 
         _, lengths = input
-        self_attention, constituent_labels, attachment_orders, indices = self.forward(input, new_words_dict)
+        self_attention, constituent_labels, poses, attachment_orders, *morphs, indices = self.forward(input, new_words_dict)
 
         return self._find_tree(lengths, self_attention, constituent_labels, attachment_orders, indices)
     

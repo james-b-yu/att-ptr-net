@@ -16,22 +16,25 @@ from .const import CONSTS
 
 class TigerDataset(Dataset):
     def __init__(self, in_dependency_trees: list[DependencyTree], use_new_words: bool, word_dict: dict[str, int], character_dict: dict[str, int],
-                 sym_dict: dict[str, int], character_flag_generators: list[Callable[[str], Literal[1, 0]]]) -> None:
+                 sym_dict: dict[str, int], pos_dict: dict[str, int], morph_dicts: dict[str, dict[str, int]], character_flag_generators: list[Callable[[str], Literal[1, 0]]]) -> None:
         super().__init__()
 
         self.word_dict = word_dict
         self.character_dict = character_dict
         self.sym_dict = sym_dict
+        self.pos_dict = pos_dict
+        self.morph_dicts = morph_dicts
         self.character_flag_generators = character_flag_generators
         self.use_new_words = use_new_words
 
         self.num_sentences = len(in_dependency_trees)
-        self.max_sentence_length = max(len(s.get_words()) for s in in_dependency_trees)
+        self.max_sentence_length = max(len(s.get_terminals()) for s in in_dependency_trees)
 
         # define dictionaries for new words. These dictionaries will be shared across batches to save generating them every time a batch is created
         self.new_words_to_id: dict[str, int] = {}
         for d_tree in in_dependency_trees:
-            for word in d_tree.get_words():
+            for terminal in d_tree.get_terminals():
+                word = terminal.word
                 if word not in self.word_dict and word not in self.new_words_to_id:
                     self.new_words_to_id[word] = len(self.new_words_to_id) + 1
         self.id_to_new_words: dict[int, str] = {i: s for s, i in self.new_words_to_id.items()}
@@ -40,14 +43,21 @@ class TigerDataset(Dataset):
         self.data = torch.ones(self.num_sentences, self.max_sentence_length, dtype=torch.long) # ones to default with padding
         self.heads = torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long)
         self.syms = torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long)
+        self.poses = torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long)
         self.attachment_orders = torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long) # use max_sentence_length for redundancy; TODO: change later. 1-indexed
+        self.morph_targets = {
+            prop: torch.zeros(self.num_sentences, self.max_sentence_length, dtype=torch.long)
+            for prop in self.morph_dicts
+        }
 
         self.dependency_trees = in_dependency_trees
 
         for i, d_tree in enumerate(in_dependency_trees):
             self.sentence_lengths[i] = d_tree.num_words
 
-            for j, word in enumerate(d_tree.get_words()):
+            for j, terminal in enumerate(d_tree.get_terminals()):
+                # set word codes
+                word = terminal.word
                 if word in self.word_dict:
                     self.data[i, j] = self.word_dict[word]
                 elif self.use_new_words:
@@ -55,6 +65,13 @@ class TigerDataset(Dataset):
                 else:
                     self.data[i, j] = 0 # 0 corresponds to <UNK>
 
+                # set part of speech targets
+                self.poses[i, j] = self.pos_dict[terminal.pos]
+                # set morphology targets
+                for prop in self.morph_dicts:
+                    self.morph_targets[prop][i, j] = self.morph_dicts[prop][terminal[prop]]
+
+            # now set parent attachment label and attachment orders
             syms_in_tree = d_tree.get_syms()
 
             for head_idx, modifier_idxs in d_tree.get_tree_map().items():
@@ -76,7 +93,7 @@ class TigerDataset(Dataset):
             self.attachment_orders[i, root_idx - 1] = 1
 
     @classmethod
-    def _sorted_collate(cls, word_codes: torch.Tensor, sentence_lengths: torch.Tensor, head_targets: torch.Tensor, sym_targets: torch.Tensor, attachment_order_targets: torch.Tensor):
+    def _sorted_collate(cls, sentence_lengths: torch.Tensor, *data: torch.Tensor):
         """given a batch of word codes, sentence lengths, and head targets, sorts them by sentence length in descending order, and returns the sorted batch, truncated to remove unnecessary padding 1s
 
         Args:
@@ -96,12 +113,7 @@ class TigerDataset(Dataset):
         sentence_lengths_sorted = sentence_lengths[arg_sort]
         T_batch = sentence_lengths_sorted[0] # maximum sentence size within the batch
         
-        word_codes_sorted: torch.Tensor = word_codes[arg_sort][:, :T_batch]
-        head_targets_sorted: torch.Tensor = head_targets[arg_sort][:, :T_batch]
-        sym_targets_sorted: torch.Tensor = sym_targets[arg_sort][:, :T_batch]
-        attachment_order_targets_sorted: torch.Tensor = attachment_order_targets[arg_sort][:, :T_batch]
-
-        return (word_codes_sorted, sentence_lengths_sorted, head_targets_sorted, sym_targets_sorted, attachment_order_targets_sorted)
+        return (sentence_lengths_sorted, *[d[arg_sort][:, :T_batch] for d in data])
 
     def __len__(self):
         return self.num_sentences
@@ -117,10 +129,10 @@ class TigerDataset(Dataset):
         """
 
         if idx == int(idx):
-            return self.data[idx], self.sentence_lengths[idx], self.heads[idx], self.syms[idx], self.attachment_orders[idx]
+            return (self.sentence_lengths[idx], self.data[idx], self.heads[idx], self.syms[idx], self.poses[idx], self.attachment_orders[idx], *[self.morph_targets[prop][idx] for prop in CONSTS["morph_props"]])
         else:
             idx = torch.as_tensor(idx)
-            return self._sorted_collate(self.data[idx], self.sentence_lengths[idx], self.heads[idx], self.syms[idx], self.attachment_orders[idx])
+            return self._sorted_collate(self.sentence_lengths[idx], self.data[idx], self.heads[idx], self.syms[idx], self.poses[idx], self.attachment_orders[idx], *[self.morph_targets[prop][idx] for prop in CONSTS["morph_props"]])
 
     def get_new_words_dict(self):
         return self.id_to_new_words
@@ -166,9 +178,34 @@ class TigerDatasetGenerator:
         """generate sym dictionary. keys are 0-indexed, where 0 corresponds to DROOT
         """
         all_syms: set[str] = set().union(*[c.get_all_syms() for c in self.sentences])
+        all_poses: set[str] = set().union(*[c.get_all_poses() for c in self.sentences])
+        assert len(all_syms - all_poses) == len(all_syms) - len(all_poses) # all_poses must be a subset of all_syms
+
+        all_syms -= all_poses
+
         self.sym_set: dict[str, int] = {sym: i + 1 for i, sym in enumerate(all_syms)}
         self.sym_set[CONSTS["d_tree_root_sym"]] = 0
         self.inverse_sym_set: dict[int, str] = {i: sym for sym, i in self.sym_set.items()}
+
+        self.pos_set: dict[str, int] = {pos: i + 1 for i, pos in enumerate(all_poses)}
+        self.pos_set[CONSTS["pos_unk_pos"]] = 0
+        self.inverse_pos_set: dict[int, str] = {i: pos for pos, i in self.pos_set.items()}
+
+    def _set_morph_dicts(self):
+        """generate dictionaries for each of the morphologies. keys are 0-indexed, where 0 corresponds to "--"
+        """
+        self.morph_dicts: dict[str, dict[str, int]] = {
+            prop: {
+                sym: i + 1 for i, sym in enumerate(set().union(*[c.get_set_of_prop_of_terminals(prop) for c in self.sentences]) - set([CONSTS["morph_na"]]))
+            } for prop in CONSTS["morph_props"]
+        }
+        for key in self.morph_dicts:
+            self.morph_dicts[key][CONSTS["morph_na"]] = 0
+        self.inverse_morph_dicts: dict[str, dict[int, str]] = {
+            prop: {
+                val: key for key, val in self.morph_dicts[prop].items()
+            } for prop in self.morph_dicts
+        }
 
     def __init__(self, file_path: str, split: tuple[float, float], vocab_coverage: float=0.95, prop_of_tiger_to_use: float=1.0, character_flag_generators: list[Callable[[str], Literal[0, 1]]] = []):
         """initializes dataset generator
@@ -239,6 +276,7 @@ class TigerDatasetGenerator:
         self._set_word_dict(vocab_coverage)
         self._set_character_dict()
         self._set_sym_dict()
+        self._set_morph_dicts()
 
         self.character_flag_generators = character_flag_generators
 
@@ -249,6 +287,8 @@ class TigerDatasetGenerator:
             self.word_dict,
             self.character_set,
             self.sym_set,
+            self.pos_set,
+            self.morph_dicts,
             self.character_flag_generators
         )
 

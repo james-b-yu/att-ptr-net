@@ -35,6 +35,9 @@ class Terminal(BaseModel):
             str: POS and other information about this terminal as a string
         """
         return self.pos
+    
+    def __getitem__(self, item):
+        return getattr(self, item)
 
 
 
@@ -402,6 +405,12 @@ class ConstituentTree(BaseModel):
     def get_all_syms(self):
         return set([c.sym for _, c in self.constituents.items()])
     
+    def get_set_of_prop_of_terminals(self, prop: str):
+        return set([t[prop] for _, t in self.terminals.items()])
+
+    def get_all_poses(self):
+        return set([t.pos for _, t in self.terminals.items()])
+    
     def get_non_pre_terminal_syms(self):
         return set([c.sym for _, c in self.constituents.items() if not c.is_pre_terminal])
     
@@ -519,8 +528,8 @@ class DependencyTree(BaseModel):
     def get_post_order_traversal(self):
         yield from self._get_post_order_traversal(self.get_tree_map(), self.get_root())
 
-    def get_words(self):
-        return [self.terminals[k].word for k in sorted(self.terminals.keys())]
+    def get_terminals(self):
+        return [self.terminals[k] for k in sorted(self.terminals.keys())]
     
     def get_mma_plot(self):
         edges = []
@@ -563,7 +572,7 @@ class DependencyTree(BaseModel):
                 closest_dependency_to_head = max(dependencies, key=lambda d: abs(d.head - d.modifier))
                 for d in dependencies:
                     if d.sym != closest_dependency_to_head.sym:
-                        print(f"Warning: arc symbol from {d.modifier} to {d.head} ({d.sym}) does not match arc from closest dependency {closest_dependency_to_head.modifier} ({closest_dependency_to_head.sym}). Setting this to ({closest_dependency_to_head.sym})")
+                        model_logger.log(0, f"INFO: arc symbol from {d.modifier} to {d.head} ({d.sym}) does not match arc from closest dependency {closest_dependency_to_head.modifier} ({closest_dependency_to_head.sym}). Setting this to ({closest_dependency_to_head.sym})")
                         d.sym = closest_dependency_to_head.sym
                 pass
 
