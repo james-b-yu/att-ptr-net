@@ -1,7 +1,6 @@
 import xml.etree.ElementTree as ET
 import random
 from math import floor
-from string import punctuation
 from torch.utils.data import Dataset
 from collections.abc import Callable
 from typing import Literal

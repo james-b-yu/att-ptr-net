@@ -7,7 +7,6 @@ import torch.nn.functional as F
 import dill as pickle
 
 from german_parser.model import TigerModel
-from string import punctuation
 import torch.nn.utils.clip_grad as utils
 from german_parser.util import get_progress_bar
 from german_parser.util.const import CONSTS
@@ -77,13 +76,11 @@ model = TigerModel(
     )
 model = model.to(device=DEVICE_NAME) # type: ignore
 
-model = torch.compile(model)
-
 print(f"Model has {sum([p.numel() for p in model.parameters()])} parameters")
 
 optim = torch.optim.SGD(model.parameters(), lr=1e-1) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 
-num_epochs = 100
+num_epochs = 1
 
 train_total_sentences = len(train_dataloader.dataset)
 dev_total_sentences = len(dev_dataloader.dataset)
