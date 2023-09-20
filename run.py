@@ -124,6 +124,7 @@ for i in range(num_epochs):
         epoch_label_loss = 0
         epoch_pos_loss = 0
         epoch_order_loss = 0
+        epoch_morph_loss = 0
         epoch_total_loss = 0
 
         brackets = []
@@ -202,6 +203,7 @@ for i in range(num_epochs):
                 epoch_label_loss += loss_labels.item()
                 epoch_pos_loss += loss_poses.item()
                 epoch_order_loss += loss_orders.item()
+                epoch_morph_loss += loss_morph.item()
                 epoch_total_loss += loss.item()
 
                 progress = sum_sentences / (train_total_sentences if training else dev_total_sentences)
@@ -215,11 +217,12 @@ for i in range(num_epochs):
 
                 for name, iteration in [(f"epoch_{i + 1}_{'trn' if training else 'dev'}", j), (f"all_epochs_{'trn' if training else 'dev'}", total_iteration_train if training else total_iteration_dev)]:
                     summary_writer.add_scalars(name, {
-                        "loss_total": loss,
                         "loss_attention": loss_attention,
+                        "loss_labels": loss_labels,
                         "loss_poses": loss_poses,
                         "loss_orders": loss_orders,
-                        "loss_labels": loss_labels
+                        "loss_morph": loss_morph,
+                        "loss_total": loss
                     }, iteration)
 
                 # now perform f1 evaluation
@@ -258,6 +261,7 @@ for i in range(num_epochs):
         epoch_label_loss     /= epoch_length
         epoch_pos_loss       /= epoch_length
         epoch_order_loss     /= epoch_length
+        epoch_morph_loss     /= epoch_length
         epoch_total_loss     /= epoch_length
 
         summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_losses", {
@@ -265,6 +269,7 @@ for i in range(num_epochs):
             "label": epoch_label_loss,
             "pos": epoch_pos_loss,
             "order": epoch_order_loss,
+            "morph": epoch_morph_loss,
             "total": epoch_total_loss
         }, i + 1)
 
