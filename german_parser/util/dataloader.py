@@ -148,14 +148,27 @@ class TigerDatasetGenerator:
                     all_word_freqs[word] = 1
                 all_word_freqs[word] += 1
 
-        all_words_sorted = sorted(all_word_freqs.keys(), key=lambda k: all_word_freqs[k], reverse=True)
-        w_idx = 0
         cum_freq = 0
+
+        train_word_freqs: dict[str, int] = {} # words by word count (across entire dataset), including only words in the training dataset
+        for train_sent in self.train_sentences:
+            for word in train_sent.get_words():
+                if word in all_word_freqs: # because same word will be visited multiple times when traversing all sentences
+                    cum_freq += all_word_freqs[word]
+                    train_word_freqs[word] = all_word_freqs[word]
+                    all_word_freqs.pop(word)
+
+        # now, all_word_freqs only contains words not in train
+
+        train_words_sorted     = sorted(train_word_freqs.keys(), key=lambda k: train_word_freqs[k], reverse=True)
+        non_train_words_sorted = sorted(all_word_freqs.keys(), key=lambda k: all_word_freqs[k], reverse=True)
+
+        w_idx = 0 # how many more words to take from sentences not in training dataset
         while cum_freq < num_all_words * coverage:
-            cum_freq += all_word_freqs[all_words_sorted[w_idx]]
+            cum_freq += all_word_freqs[non_train_words_sorted[w_idx]]
             w_idx += 1
 
-        self.word_dict: dict[str, int] = {w: i + 2 for i, w in enumerate(all_words_sorted[:w_idx])} # 0 and 1 are reserved for <UNK> and <PAD> respectively
+        self.word_dict: dict[str, int] = {w: i + 2 for i, w in enumerate(train_words_sorted + non_train_words_sorted[:w_idx])} # 0 and 1 are reserved for <UNK> and <PAD> respectively
         self.inverse_word_dict: dict[int, str] = {i: w for w, i in self.word_dict.items()}
 
     def _set_character_dict(self):

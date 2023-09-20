@@ -1,12 +1,13 @@
 from typing import Callable, Literal
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from .word_cnn import WordCNN
 
 from ...util.logger import model_logger
 
 class WordEmbedding(nn.Module):
-    def __init__(self, char_set: dict[str, int], char_flag_generators: list[Callable[[str], Literal[1, 0]]], char_internal_embedding_dim: int, char_part_embedding_dim: int,  word_part_embedding_dim: int, char_internal_window_size: int, word_dict: dict[int, str]):
+    def __init__(self, char_set: dict[str, int], char_flag_generators: list[Callable[[str], Literal[1, 0]]], char_internal_embedding_dim: int, char_part_embedding_dim: int,  word_part_embedding_dim: int, char_internal_window_size: int, word_dict: dict[int, str], unk_rate: float):
         """initialize a WordEmbedding module. Produces embeddings from word codes, which are concatenations of word- and character-level embeddings
 
         Args:
@@ -47,10 +48,13 @@ class WordEmbedding(nn.Module):
         with torch.no_grad():
             self.embeddings.weight[1] = 1 # padding embedding is ones within word-level embedding
 
+        self.unk_rate = unk_rate
+
         self.dummy_param = nn.Parameter(torch.zeros(1), requires_grad=False) # dummy parameter to find device
 
     def forward(self, x: torch.Tensor, new_words_dict: dict[int, str] | None = None):
         """take a tensor of word codes and return a tensor of word embeddings
+           NOTE: during training, we assume new_words_dict is empty, and x contains no negative indices. instead, <UNK> will be randomly set 
 
         Args:
             x (torch.Tensor): tensor of shape S containing word codes. These word codes correspond to those in the word_dict passed to the constructor. If new words are used, these should be indicated by negative indices. The absolute value of these indices should correspond to the key in new_words_dict. If no new words are used, this can be left unspecified.
@@ -60,11 +64,14 @@ class WordEmbedding(nn.Module):
             torch.Tensor: output tensor of shape (*S, self.char_part_embedding_dim + self.word_part_embedding_dim)
         """
 
-        x = torch.as_tensor(x)
+        x = torch.as_tensor(x, dtype=torch.long)
 
         char_part: torch.Tensor = self.word_cnn(x, new_words_dict) # dimensions (*S, self.char_part_embedding_dim)
 
-        x = x.maximum(torch.zeros(1, device=self.dummy_param.device)).to(dtype=torch.long) # replace negative indices with 0 (corresponding to <UNK>) when calculating word-level embeddings
+        if self.training:
+            x = torch.empty_like(x).bernoulli(1 - self.unk_rate) * x
+        else:
+            x = x.maximum(torch.zeros(1, device=self.dummy_param.device, dtype=torch.long)) # replace negative indices with 0 (corresponding to <UNK>) when calculating word-level embeddings
         word_part: torch.Tensor = self.embeddings(x) # dimensions (*S, self.word_part_embedding_dim)
 
         res = torch.cat((char_part, word_part), dim=-1) # dimensions (*S, self.char_part_embedding_dim + self.word_part_embedding_dim)

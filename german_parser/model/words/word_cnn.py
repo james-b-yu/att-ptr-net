@@ -7,8 +7,7 @@ from ...util.logger import model_logger
 
 class WordCNN(nn.Module):
     def __init__(self, char_set: dict[str, int], flag_generators: list[Callable[[str], Literal[1, 0]]], char_embedding_dim: int, out_embedding_dim: int, window_size: int, word_dict: dict[int, str]):
-        """_summary_
-
+        """
         Args:
             char_set (dict[str, int]): set of characters to be recognised, excluding <UNK> and <PAD>. Codes must start from 2 (0 and 1 are reserved for <UNK> and <PAD> respectively)
             flag_generators (list[Callable[[str], Literal[1, 0]]): set of callable functions that determine whether a character contains a certain property (e.g. is_capital)
@@ -83,7 +82,8 @@ class WordCNN(nn.Module):
 
 
     def forward(self, x: torch.Tensor, new_words_dict: dict[int, str] | None = None) -> torch.Tensor:
-        """_summary_
+        """NOTE:
+           during training, we assume the new_words_dict is empty! <UNK> will be randomly set on the word-embedding level within word_embedding.py
 
         Args:
             x (torch.Tensor): an input tensor of shape S, containing keys corresponding to words in self.word_dict. Unknown words are marked with a key of NEGATIVE values where the negative values correspond to (positive) values in a new_words_dict. If you would not like to provide this dict, you can code unknown words using 0. Note: words longer than self.max_word_length will be truncated from the right
@@ -91,11 +91,7 @@ class WordCNN(nn.Module):
         Returns:
             torch.Tensor: output tensor of shape (*S, self.out_embedding_size)
         """
-        x = torch.as_tensor(x)
-
-        if x.dtype != torch.long:
-            model_logger.warning("Warning: converting into long tensor")
-            x = x.to(dtype=torch.long)
+        x = torch.as_tensor(x, dtype=torch.long)
 
         unknown_words = x < 0 # words that are unknown AND have been specified in new_words_dict (word code 0 means unknown words that don't want to be specified)
         known_words = x > 1 # ignore padding and unknown words that don't want to be specified
@@ -107,19 +103,20 @@ class WordCNN(nn.Module):
         unknown_words_locs = unknown_words.nonzero(as_tuple=False)
 
         # TODO: speed this section up!
-        for loc in unknown_words_locs:
-            if loc.numel() == 0:
-                continue
+        if not self.training:
+            for loc in unknown_words_locs:
+                if loc.numel() == 0:
+                    continue
 
-            assert type(new_words_dict) == dict, "If we have new words, must provide an accompanying dict for the new words"
-            new_word_idx = -x[tuple(loc)]
+                assert type(new_words_dict) == dict, "If we have new words, must provide an accompanying dict for the new words"
+                new_word_idx = -x[tuple(loc)]
 
-            assert new_word_idx.item() in new_words_dict
-            new_word = new_words_dict[int(new_word_idx.item())]
+                assert new_word_idx.item() in new_words_dict
+                new_word = new_words_dict[int(new_word_idx.item())]
 
-            for j, c in enumerate(new_word):
-                if j < self.max_word_length:
-                    x_words[*tuple(loc), j] = self.character_set.get(c, 0)
+                for j, c in enumerate(new_word):
+                    if j < self.max_word_length:
+                        x_words[*tuple(loc), j] = self.character_set.get(c, 0)
 
         x_characters_embeddings: torch.Tensor = self.embeddings(x_words) # dimensions (*S, self.max_word_length, self.embedding_dim)
         x_characters_flags: torch.Tensor = self.flags[x_words] # dimensions (*S, self.max_word_length, self.num_flags)

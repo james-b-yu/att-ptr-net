@@ -24,6 +24,7 @@ class TigerModel(nn.Module):
         word_part_embedding_dim: int
         char_internal_window_size: int
         word_dict: dict[int, str]
+        unk_rate: float
 
     class LSTMParams(BaseModel):
         hidden_size: int
@@ -44,7 +45,8 @@ class TigerModel(nn.Module):
             char_part_embedding_dim=self.word_embedding_params.char_part_embedding_dim,
             word_part_embedding_dim=self.word_embedding_params.word_part_embedding_dim,
             char_internal_window_size=self.word_embedding_params.char_internal_window_size,
-            word_dict=self.word_embedding_params.word_dict
+            word_dict=self.word_embedding_params.word_dict,
+            unk_rate=self.word_embedding_params.unk_rate
         )
 
         # define encoder
