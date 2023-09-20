@@ -7,3 +7,4 @@
 
 1. dropouts
 1. skip connects
+1. add morph metrics to tensorboard!

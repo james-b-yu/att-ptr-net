@@ -210,7 +210,7 @@ for i in range(num_epochs):
                 eta_str = timedelta(seconds=eta_seconds)
                 speed = round(sum_sentences / (time() - epoch_start_time))
 
-                print(f"EPOCH {i + 1:5d} {'TRN' if training else 'DEV'} {get_progress_bar(progress, 20)} ({100 * progress:6.2f}%) ATTENTION {loss_attention.item():8.6} LABEL {loss_labels.item():8.6} POS {loss_poses.item():8.6} ORDERS {loss_orders.item():8.6} MORPH {loss_morph.item():8.6} TOTAL {loss.item():8.6} ETA {eta_str} @ {eta_time} ({speed} ex s⁻¹)", end="\r", flush=True)
+                print(f"EPOCH {i + 1:5d} {'TRN' if training else 'DEV'} {get_progress_bar(progress, 20)} ({100 * progress:6.2f}%) ATTENTION {loss_attention.item():6.4e} LABEL {loss_labels.item():6.4e} POS {loss_poses.item():6.4e} ORDERS {loss_orders.item():6.4e} MORPH {loss_morph.item():6.4e} TOTAL {loss.item():6.4e} ETA {eta_str} @ {eta_time} ({speed:4d} ex s⁻¹)", end="\r", flush=True)
 
 
                 for name, iteration in [(f"epoch_{i + 1}_{'trn' if training else 'dev'}", j), (f"all_epochs_{'trn' if training else 'dev'}", total_iteration_train if training else total_iteration_dev)]:
