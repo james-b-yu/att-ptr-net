@@ -39,8 +39,8 @@ summary_writer = SummaryWriter()
 
 model = TigerModel(
     word_embedding_params=TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=100,
-                                   char_part_embedding_dim=100, 
-                                   word_part_embedding_dim=100, 
+                                   char_part_embedding_dim=150, 
+                                   word_part_embedding_dim=200, 
                                    char_internal_window_size=3,
                                    word_dict=inverse_word_dict,
                                    unk_rate=0.2),
@@ -82,8 +82,8 @@ model = model.to(device=DEVICE_NAME, dtype=torch.half) # type: ignore
 
 print(f"Model has {sum([p.numel() for p in model.parameters()])} parameters")
 
-optim = torch.optim.SGD(model.parameters(), lr=1e-1, weight_decay=1e-4, momentum=0.9, nesterov=True) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
-scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=20, gamma=0.5, last_epoch=-1)
+optim = torch.optim.SGD(model.parameters(), lr=5e-2, weight_decay=1e-4, momentum=0.9, nesterov=True) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
+scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=4, gamma=0.9, last_epoch=-1)
 
 num_epochs = 100
 
