@@ -38,16 +38,19 @@ from datetime import timedelta
 summary_writer = SummaryWriter()
 
 model = TigerModel(
-    word_embedding_params=TigerModel.WordEmbeddingParams(char_set=character_set, char_flag_generators=character_flag_generators, char_internal_embedding_dim=100,
-                                   char_part_embedding_dim=150, 
-                                   word_part_embedding_dim=200, 
-                                   char_internal_window_size=3,
-                                   word_dict=inverse_word_dict,
-                                   unk_rate=0.2),
+    word_embedding_params=TigerModel.WordEmbeddingParams(
+        char_set=character_set,
+        char_flag_generators=character_flag_generators,
+        char_internal_embedding_dim=100,
+        char_part_embedding_dim=200, 
+        word_part_embedding_dim=200, 
+        char_internal_window_size=3,
+        word_dict=inverse_word_dict,
+        unk_rate=0.5),
     enc_lstm_params=TigerModel.LSTMParams(
         hidden_size=512,
         bidirectional=True,
-        num_layers=3),
+        num_layers=5),
     dec_lstm_params=TigerModel.LSTMParams(
         hidden_size=512,
         bidirectional=False,
@@ -66,7 +69,7 @@ model = TigerModel(
     enc_morph_mlp_dim=128,
     dec_morph_mlp_dim=128,
 
-    morph_pos_interaction_dim=64,
+    morph_pos_interaction_dim=128,
     morph_prop_classes=[len(inverse_morph_dicts[prop]) for prop in CONSTS["morph_props"]],
 
     num_biaffine_attention_classes=2,
@@ -80,7 +83,7 @@ model = TigerModel(
     )
 model = model.to(device=DEVICE_NAME, dtype=torch.half) # type: ignore
 
-print(f"Model has {sum([p.numel() for p in model.parameters()])} parameters")
+print(f"Model has {sum([p.numel() for p in model.parameters()]):_} parameters".replace("_", " "))
 
 optim = torch.optim.SGD(model.parameters(), lr=5e-2, weight_decay=1e-4, momentum=0.9, nesterov=True) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=4, gamma=0.9, last_epoch=-1)
