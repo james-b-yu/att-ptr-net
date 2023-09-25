@@ -69,7 +69,7 @@ class WordEmbedding(nn.Module):
         char_part: torch.Tensor = self.word_cnn(x, new_words_dict) # dimensions (*S, self.char_part_embedding_dim)
 
         if self.training:
-            x = torch.empty_like(x).bernoulli(1 - self.unk_rate) * x
+            x = torch.empty_like(x).bernoulli_(1 - self.unk_rate) * x
         else:
             x = x.maximum(torch.zeros(1, device=self.dummy_param.device, dtype=torch.long)) # replace negative indices with 0 (corresponding to <UNK>) when calculating word-level embeddings
         word_part: torch.Tensor = self.embeddings(x) # dimensions (*S, self.word_part_embedding_dim)
