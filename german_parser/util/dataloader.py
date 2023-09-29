@@ -12,6 +12,12 @@ from .logger import model_logger
 from .c_and_d import ConstituentTree, DependencyTree
 from .const import CONSTS
 
+from functools import reduce
+from collections import defaultdict
+
+from transformers import PreTrainedTokenizerFast
+
+tokenizer: PreTrainedTokenizerFast = torch.hub.load('huggingface/pytorch-transformers', 'tokenizer', 'bert-base-german-cased')
 
 class TigerDataset(Dataset):
     def __init__(self, in_dependency_trees: list[DependencyTree], use_new_words: bool, word_dict: dict[str, int], character_dict: dict[str, int],
@@ -51,8 +57,89 @@ class TigerDataset(Dataset):
 
         self.dependency_trees = in_dependency_trees
 
+        def clean_word(word: str):
+            if word in ("``", "''"):
+                return "'"
+            
+            word_no_punct = word.translate(str.maketrans("", "", r"""!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"""))
+            if len(word_no_punct) == 0:
+                return word
+            
+            return word_no_punct
+
+        # NOW we need to find the sentence with the most tokens
+        self.max_tokens_length: int = reduce(lambda a, b: a if a > b else b, map(lambda d_tree: len(tokenizer.tokenize(" ".join(map(lambda t: clean_word(t.word), d_tree.get_terminals())), add_special_tokens=True)), in_dependency_trees))
+
+        self.sentence_token_lengths = torch.zeros(self.num_sentences, dtype=torch.long)
+        self.tokens_data = torch.zeros(self.num_sentences, self.max_tokens_length, dtype=torch.long)
+        self.tokens_transform_matrix = torch.zeros(self.num_sentences, self.max_sentence_length, self.max_tokens_length)
+        
+        failed_sentesasdfsad = 0
+
         for i, d_tree in enumerate(in_dependency_trees):
             self.sentence_lengths[i] = d_tree.num_words
+
+            the_sentence = " ".join(map(lambda t: clean_word(t.word), d_tree.get_terminals()))
+            tokenized_sentence = tokenizer.tokenize(the_sentence, add_special_tokens=True)
+
+
+            continuing_idxs: dict[int, int] = {} # idx corresponds to tokens, not words. if idx is in this dict, then it means a word has been broken into multiple tokens. d[idx] corresponds to the number of tokens into which the corresponding word has been broken
+
+            tokenized_sentence_collapsed_periods = []
+            for token in tokenized_sentence:
+                if token == "." and len(tokenized_sentence_collapsed_periods) > 0 and tokenized_sentence_collapsed_periods[-1][-1] == "." and tokenized_sentence_collapsed_periods[-1] != "...":
+                    tokenized_sentence_collapsed_periods[-1] += "."
+                    continue
+
+                if token == "-" and len(tokenized_sentence_collapsed_periods) > 0 and tokenized_sentence_collapsed_periods[-1][-1] == "-" and tokenized_sentence_collapsed_periods[-1] != "--":
+                    tokenized_sentence_collapsed_periods[-1] += "."
+                    continue
+
+                tokenized_sentence_collapsed_periods.append(token)
+
+            tokenized_sentence = tokenized_sentence_collapsed_periods
+
+            self.sentence_token_lengths[i] = len(tokenized_sentence)
+            self.tokens_data[i, :len(tokenized_sentence)] = torch.tensor(tokenizer.convert_tokens_to_ids(tokenized_sentence))
+
+            non_continuing_idx = 0
+            for token_n, token in enumerate(tokenized_sentence):
+                if token in tokenizer.all_special_tokens and token != tokenizer.unk_token:
+                    non_continuing_idx = token_n
+                    continue
+                if token[:2] != "##":
+                    non_continuing_idx = token_n
+                    continue
+
+                continuing_length = token_n - non_continuing_idx + 1
+                for offset in range(continuing_length):
+                    continuing_idxs[non_continuing_idx + offset] = continuing_length
+
+            word_n = 0
+
+            for token_n, token in enumerate(tokenized_sentence):
+                if token in tokenizer.all_special_tokens and token != tokenizer.unk_token:
+                    continue
+                if token_n in continuing_idxs:
+                    assert self.tokens_transform_matrix[i, word_n, token_n] == 0
+                    self.tokens_transform_matrix[i, word_n, token_n] = continuing_idxs[token_n] ** -1
+
+                    if token[:2] != "##":
+                        word_n += 1
+                    continue
+                
+                assert self.tokens_transform_matrix[i, word_n, token_n] == 0
+                self.tokens_transform_matrix[i, word_n, token_n] = 1
+                word_n += 1
+
+
+            
+            
+            # print out failed sentences (when number of words by the tokeniser doesnt equal number of words as given by TIGER dataset)
+            if word_n != d_tree.num_words:
+                failed_sentesasdfsad += 1
+                print("Failed ", failed_sentesasdfsad)
+            #assert word_n == d_tree.num_words
 
             for j, terminal in enumerate(d_tree.get_terminals()):
                 # set word codes
@@ -91,14 +178,18 @@ class TigerDataset(Dataset):
             self.syms[i, root_idx - 1] = self.sym_dict[CONSTS["d_tree_root_sym"]]
             self.attachment_orders[i, root_idx - 1] = 1
 
+        self.max_tokens_length = int(self.sentence_token_lengths.max().item())
+        self.tokens_data = self.tokens_data[:, :self.max_tokens_length]
+        self.tokens_transform_matrix = self.tokens_transform_matrix[:, :, :self.max_tokens_length]
+
     @classmethod
-    def _sorted_collate(cls, sentence_lengths: torch.Tensor, *data: torch.Tensor):
+    def _sorted_collate(cls, sentence_lengths: torch.Tensor, *data: torch.Tensor, dont_trim_idx: list[int]=[]):
         """given a batch of word codes, sentence lengths, and head targets, sorts them by sentence length in descending order, and returns the sorted batch, truncated to remove unnecessary padding 1s
 
         Args:
             word_codes (torch.Tensor): (B, T), where T is the maximum sentence length across the entire dataset
-            sentence_lengths (torch.Tensor): (B)
-            head_targets (torch.Tensor): (B, T)
+            data (*torch.Tensor): the data. will be trimmed to sentence length unless corresponding index is not in the list of dont_trim_idx
+            dont_trim_idx (list[int]): dont trim these indices
 
         Returns:
             _type_: tuple[word_codes, sentence_lengths, head_targets] which have been sorted and such that their sizes are:
@@ -112,7 +203,7 @@ class TigerDataset(Dataset):
         sentence_lengths_sorted = sentence_lengths[arg_sort]
         T_batch = sentence_lengths_sorted[0] # maximum sentence size within the batch
         
-        return (sentence_lengths_sorted, *[d[arg_sort][:, :T_batch] for d in data])
+        return (sentence_lengths_sorted, *[d[arg_sort][:, :T_batch] if i not in dont_trim_idx else d[arg_sort] for i, d in enumerate(data)])
 
     def __len__(self):
         return self.num_sentences
@@ -128,10 +219,32 @@ class TigerDataset(Dataset):
         """
 
         if idx == int(idx):
-            return (self.sentence_lengths[idx], self.data[idx], self.heads[idx], self.syms[idx], self.poses[idx], self.attachment_orders[idx], *[self.morph_targets[prop][idx] for prop in CONSTS["morph_props"]])
+            return (
+                self.sentence_lengths[idx],         # 
+                self.data[idx],                     # 0
+                self.tokens_data[idx],              # 1
+                self.tokens_transform_matrix[idx],  # 2
+                self.sentence_token_lengths[idx],   # 3
+                self.heads[idx],                    # 4
+                self.syms[idx],                     # 5
+                self.poses[idx],                    # 6
+                self.attachment_orders[idx],        # 7
+                *[self.morph_targets[prop][idx] for prop in CONSTS["morph_props"]] # 8
+            )
         else:
             idx = torch.as_tensor(idx)
-            return self._sorted_collate(self.sentence_lengths[idx], self.data[idx], self.heads[idx], self.syms[idx], self.poses[idx], self.attachment_orders[idx], *[self.morph_targets[prop][idx] for prop in CONSTS["morph_props"]])
+            return self._sorted_collate(
+                self.sentence_lengths[idx],         # 
+                self.data[idx],                     # 0
+                self.tokens_data[idx],              # 1
+                self.tokens_transform_matrix[idx],  # 2
+                self.sentence_token_lengths[idx],   # 3
+                self.heads[idx],                    # 4
+                self.syms[idx],                     # 5
+                self.poses[idx],                    # 6
+                self.attachment_orders[idx],        # 7
+                *[self.morph_targets[prop][idx] for prop in CONSTS["morph_props"]] # 8
+            , dont_trim_idx=[1, 3])
 
     def get_new_words_dict(self):
         return self.id_to_new_words
@@ -262,6 +375,13 @@ class TigerDatasetGenerator:
 
                 s_cannot_use = sent.has_unary or sent.has_empty_verb_constituents or sent.get_num_words() < 2
 
+                # check for three elipses in a row
+                if any([".", ".", "."] == list(x) for x in zip(*[sent.get_words()[i:] for i in range(3)])):
+                    raise Exception("Separated ellipses cannot be included in a valid sentence.")
+                
+                if "./" in sent.get_words() or "(???)" in sent.get_words():
+                    raise Exception("Weird punctuation combinations cannot be included in a valid sentence.") # TODO: modify bert tokeniser to treat this stuff as a single token
+
                 if not s_cannot_use:
                     self.sentences.append(sent)
             except Exception as e:
@@ -308,7 +428,7 @@ class TigerDatasetGenerator:
         return DataLoader(
             dataset,
             **kargs,
-            collate_fn=lambda batch : TigerDataset._sorted_collate(*default_collate(batch))
+            collate_fn=lambda batch : TigerDataset._sorted_collate(*default_collate(batch), dont_trim_idx=[1, 3])
         ), dataset.get_new_words_dict()
 
     def get_training_dataset(self, use_new_words: bool=True) -> TigerDataset:

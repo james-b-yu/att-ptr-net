@@ -8,3 +8,4 @@
 1. dropouts
 1. skip connects
 1. add morph metrics to tensorboard!
+1. make sure to escape special tokens when running inference

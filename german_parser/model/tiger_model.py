@@ -15,6 +15,8 @@ from .words import WordEmbedding
 
 from ..util import BatchUnionFind
 
+from transformers.models.bert import BertLMHeadModel
+
 class TigerModel(nn.Module):
     class WordEmbeddingParams(BaseModel):
         char_set: dict[str, int]
@@ -32,10 +34,15 @@ class TigerModel(nn.Module):
         num_layers: int = Field(default=1)
         dropout: float = Field(default=0.2)
 
-    def __init__(self, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, enc_pos_mlp_dim: int, dec_pos_mlp_dim: int, enc_morph_mlp_dim: int, dec_morph_mlp_dim: int, max_attachment_order: int, num_constituent_labels: int, num_terminal_poses: int, morph_prop_classes: Sequence[int], morph_pos_interaction_dim: int, num_biaffine_attention_classes=2, beam_size=10):
+    def __init__(self, bert_model: BertLMHeadModel, bert_embedding_dim: int, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, enc_pos_mlp_dim: int, dec_pos_mlp_dim: int, enc_morph_mlp_dim: int, dec_morph_mlp_dim: int, max_attachment_order: int, num_constituent_labels: int, num_terminal_poses: int, morph_prop_classes: Sequence[int], morph_pos_interaction_dim: int, num_biaffine_attention_classes=2, beam_size=10):
         super().__init__()
+
+        # save the bert model
+        self.bert_model = bert_model
+        self.bert_embedding_dim = bert_embedding_dim
+
         self.dummy_param = nn.Parameter(torch.zeros(1), requires_grad=False) # to get self device
-        
+
         # create word embeddor
         self.word_embedding_params = word_embedding_params
         self.word_embedding = WordEmbedding(
@@ -53,7 +60,7 @@ class TigerModel(nn.Module):
         self.enc_lstm_params = enc_lstm_params
         assert enc_lstm_params.bidirectional == True, "Encoder must be bidirectional"
         self.enc_lstm = LSTMSkip(
-            input_size=word_embedding_params.char_part_embedding_dim + word_embedding_params.word_part_embedding_dim,
+            input_size=word_embedding_params.char_part_embedding_dim + word_embedding_params.word_part_embedding_dim + self.bert_embedding_dim,
             hidden_size=self.enc_lstm_params.hidden_size,
             num_layers=self.enc_lstm_params.num_layers,
             bidirectional=self.enc_lstm_params.bidirectional,
@@ -203,26 +210,27 @@ class TigerModel(nn.Module):
         return (h_dec, c_dec)
         
 
-    def forward(self, input: tuple[torch.Tensor, torch.Tensor], new_words_dict: dict[int, str] | None):
+    def forward(self, input: tuple[torch.Tensor, ...], new_words_dict: dict[int, str] | None):
         """forward
 
         Args:
-            input (tuple[torch.Tensor, torch.Tensor]): tuple of (data, sentence_lengths), where data is a tensor of size (B, T) and sentence_lengths is a tensor of size (B,). B is batch size, T is max(sentence_length) across all batches. The input must be sorted in descending order of sentence length
+            input (tuple[torch.Tensor, ...]): tuple of (data, tokens, sentence_lengths, token_transformations), where data is a tensor of size (B, T) and sentence_lengths is a tensor of size (B,). B is batch size, T is max(sentence_length) across all batches. The input must be sorted in descending order of sentence length
             new_words_dict (dict[int, str] | None): dictionary of new words. positive indices in new_words_dict correspond to negative indices in input[0] (data). If None, then all unknown words must be coded as 0
 
         Returns:
             tuple[torch.Tensor, ...]: self_attention (B, T, T + 1), constituent_labels (B, T, num_constituent_labels), attachment_orders (B, T, max_attachment_order), indices (used to get a tensor of shape (N, *) by disgarding all unneeded elements in second-dimension of the previous tensors)
         """
-
-        # transfer to current device. avoid making a copy if possible
-        x, lengths = input     
-        x = torch.as_tensor(x, device=self.dummy_param.device)
-
+        x, tokens, lengths, transformations = input
+        transformations = transformations.type_as(self.dummy_param)
         B = len(lengths)
 
         # create packed embedding sequences
         x_embedded = self.word_embedding(x, new_words_dict) # (B, T, E) where B is batch_size, T is max(sentence_length), E is embedding dimension (char_part_embedding_dim + word_part_embedding_dim)
-        x_embedded_packed = rnn_utils.pack_padded_sequence(x_embedded, lengths, batch_first=True, enforce_sorted=True)
+
+        bert_embedded = self.bert_model(tokens).last_hidden_state
+        bert_embedded_transformed = torch.einsum("bst,bti->bsi", transformations, bert_embedded)
+        embeddings = torch.cat((x_embedded, bert_embedded_transformed), dim=-1)
+        x_embedded_packed = rnn_utils.pack_padded_sequence(embeddings, lengths, batch_first=True, enforce_sorted=True)
 
         # henceforth, T refers to max(sentence_length) within the batch, rather than across all batches
 

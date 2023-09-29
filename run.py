@@ -36,8 +36,14 @@ from time import time, strftime, gmtime
 from datetime import timedelta
 
 summary_writer = SummaryWriter()
+from transformers.models.bert import BertLMHeadModel
+
+bert_model: BertLMHeadModel = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-german-cased')
 
 model = TigerModel(
+    bert_model=bert_model,
+    bert_embedding_dim=768,
+
     word_embedding_params=TigerModel.WordEmbeddingParams(
         char_set=character_set,
         char_flag_generators=character_flag_generators,
@@ -151,7 +157,7 @@ for i in range(num_epochs):
             else:
                 model.eval()
 
-            sentence_lengths, words, target_heads, target_syms, target_poses, target_attachment_orders, *target_morphs = input
+            sentence_lengths, words, tokens, token_transformations, token_lengths, target_heads, target_syms, target_poses, target_attachment_orders, *target_morphs = input
             batch_size = words.shape[0]
             sum_sentences += batch_size
 
@@ -160,11 +166,13 @@ for i in range(num_epochs):
             target_syms = target_syms.to(device=DEVICE_NAME)
             target_poses = target_poses.to(device=DEVICE_NAME)
             target_attachment_orders = target_attachment_orders.to(device=DEVICE_NAME)
+            tokens = tokens.to(device=DEVICE_NAME)
+            token_transformations = token_transformations.to(device=DEVICE_NAME)
 
             for m, target_morph in enumerate(target_morphs):
                 target_morphs[m] = target_morph.to(device=DEVICE_NAME)
 
-            self_attention, labels, poses, attachment_orders, *morphs, indices = model((words, sentence_lengths), new_words_dict)
+            self_attention, labels, poses, attachment_orders, *morphs, indices = model((words, tokens, sentence_lengths, token_transformations), new_words_dict)
 
             loss_attention = F.cross_entropy(self_attention[indices], target_heads[indices])
             loss_labels    = F.cross_entropy(labels[indices, target_heads[indices]], target_syms[indices])
