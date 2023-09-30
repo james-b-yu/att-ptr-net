@@ -565,7 +565,7 @@ class DependencyTree(BaseModel):
             )
 
             for prop in CONSTS["morph_props"]:
-                terminals[child][prop] = morphs[prop][child]
+                terminals[child][prop] = morphs[prop][child - 1]
 
             # child with head of 0 is the root node of the d-tree; don't add it to modifiers dict
             if head == 0:
