@@ -363,15 +363,23 @@ class TigerModel(nn.Module):
         B, T, *_ = self_attention.shape
         uf = BatchUnionFind(B, self.beam_size, N=T + 1, device=self.dummy_param.device)
 
-        # initialise beams by finding top-K most probable root nodes
-        best_roots = self_attention[:, :, 0].topk(k=self.beam_size, dim=-1)
+        # initialise beams by finding top-K most probable root nodes. we take the minimum of T and self.beam_size to avoid edge case where there are not enough logits to pick from
+        best_roots = self_attention[:, :, 0].topk(k=min(T, self.beam_size), dim=-1)
 
-        current_root_indices = best_roots.indices # (B, K)
-        joint_logits: torch.Tensor = best_roots.values # (B, K)
+        current_root_indices = best_roots.indices # (B, min(T, K))
+        joint_logits: torch.Tensor = best_roots.values # (B, min(T, K))
 
         edges = torch.zeros(B, self.beam_size, T, dtype=torch.long, device=self.dummy_param.device) # (B, K, T); m[b, k, t - 1] is the 1-indexed parent of 1-indexed node t, in batch b, beam k
 
         same_as_beams = torch.arange(self.beam_size, dtype=torch.long, device=self.dummy_param.device).repeat(B, 1) # m[b, k] == 1 if beam k in batch b is equal to beam 1 in batch b. allows us to keep track of duplicates. duplicates are when m[b, k] != k. Beams begin unique because the top-k best roots as initialised above will be unique
+        
+        # if T is less than beam size, then fill in the final beam candidates by copying the worst starting candidate beam_size - L times.
+        if T < self.beam_size:
+            current_root_indices = torch.cat((current_root_indices, current_root_indices[:, -1].unsqueeze(-1).expand(-1, self.beam_size - T)), dim=-1) # (B, K)
+            joint_logits = torch.cat((joint_logits, joint_logits[:, -1].unsqueeze(-1).expand(-1, self.beam_size - T)), dim=-1) # (B, K)
+            same_as_beams[:, T:] = T - 1
+
+
         beam_check = torch.arange(self.beam_size, dtype=torch.long, device=self.dummy_param.device) # used multiple times
         beam_check_repeated = beam_check.repeat(B, 1)
         parents = torch.arange(0, T + 1, 1, device=self.dummy_param.device, dtype=torch.long).repeat(B, self.beam_size, 1) # (B, K, T + 1), where m[b, k, t] = t to represent the index of each parent # these same indices are used multiple times
