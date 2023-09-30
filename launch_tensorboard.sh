@@ -1,0 +1,1 @@
+tensorboard --logdir=$(ls -td ./runs/*/ | head -1)
