@@ -11,7 +11,8 @@ import dill as pickle
 
 from german_parser.model import TigerModel
 import torch.nn.utils.clip_grad as utils
-from german_parser.util import get_progress_bar, get_filename, one_epoch
+from german_parser.util import get_progress_bar, get_filename
+from german_parser.util.epoch import one_epoch
 from german_parser.util.const import CONSTS
 from german_parser.util.c_and_d import ConstituentTree, DependencyTree
 
