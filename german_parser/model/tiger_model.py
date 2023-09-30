@@ -225,12 +225,13 @@ class TigerModel(nn.Module):
         B = len(lengths)
 
         # create packed embedding sequences
+        # NOTE: <UNK> is only artificially introduce into x_embedding, not bert_embedded
         x_embedded = self.word_embedding(x, new_words_dict) # (B, T, E) where B is batch_size, T is max(sentence_length), E is embedding dimension (char_part_embedding_dim + word_part_embedding_dim)
 
         bert_embedded = self.bert_model(tokens).last_hidden_state
         bert_embedded_transformed = torch.einsum("bst,bti->bsi", transformations, bert_embedded)
         embeddings = torch.cat((x_embedded, bert_embedded_transformed), dim=-1)
-        x_embedded_packed = rnn_utils.pack_padded_sequence(embeddings, lengths, batch_first=True, enforce_sorted=True)
+        embedded_packed = rnn_utils.pack_padded_sequence(embeddings, lengths, batch_first=True, enforce_sorted=True)
 
         # henceforth, T refers to max(sentence_length) within the batch, rather than across all batches
 
@@ -239,7 +240,7 @@ class TigerModel(nn.Module):
         h_init = c_init.tanh()
 
         # feed through encoder
-        enc_out, enc_final_state = self.enc_lstm(x_embedded_packed, (h_init, c_init)) # enc_out has size (B, T, 2 * enc_hidden_size)  
+        enc_out, enc_final_state = self.enc_lstm(embedded_packed, (h_init, c_init)) # enc_out has size (B, T, 2 * enc_hidden_size)  
         enc_out_pad, _ = rnn_utils.pad_packed_sequence(enc_out, batch_first=True)
 
         # feed through decoder
@@ -345,9 +346,9 @@ class TigerModel(nn.Module):
         _, lengths = input
         self_attention, constituent_labels, poses, attachment_orders, *morphs, indices = self.forward(input, new_words_dict)
 
-        return self._find_tree(lengths, self_attention, constituent_labels, attachment_orders, indices)
+        return self._find_tree(lengths, self_attention, constituent_labels, poses, attachment_orders, *morphs, indices=indices)
     
-    def _find_tree(self, lengths: torch.Tensor, self_attention: torch.Tensor, constituent_labels: torch.Tensor, attachment_orders: torch.Tensor, indices: torch.Tensor):
+    def _find_tree(self, lengths: torch.Tensor, self_attention: torch.Tensor, constituent_labels: torch.Tensor, poses: torch.Tensor, attachment_orders: torch.Tensor, *morphs: torch.Tensor, indices: torch.Tensor):
         # self_attention has size (B, T, T + 1)
         # NOTE: self_attention indices are 1-indexed. index 0 corresponds to virtual root of D-tree (which is different from virtual root of C-tree)
 
@@ -358,7 +359,7 @@ class TigerModel(nn.Module):
         best_roots = self_attention[:, :, 0].topk(k=self.beam_size, dim=-1)
 
         current_root_indices = best_roots.indices # (B, K)
-        joint_logits = best_roots.values # (B, K)
+        joint_logits: torch.Tensor = best_roots.values # (B, K)
 
         edges = torch.zeros(B, self.beam_size, T, dtype=torch.long, device=self.dummy_param.device) # (B, K, T); m[b, k, t - 1] is the 1-indexed parent of 1-indexed node t, in batch b, beam k
 
@@ -424,13 +425,27 @@ class TigerModel(nn.Module):
 
         num_labels = constituent_labels.shape[-1]
         num_attachment_orders = attachment_orders.shape[-1]
+        num_poses = poses.shape[-1]
 
         best_edges = edges[torch.arange(edges.shape[0]), joint_logits.argmax(dim=-1)] # (B, T) containing elements in range [0, T + 1), where m[b, t - 1] denotes the 1-indexed parent of 1-indexed node t
 
         label_logits_best_edges = constituent_labels.gather(index=best_edges[:, :, None, None].expand(-1, -1, -1, num_labels), dim=2).squeeze(2)
         attachment_logits_best_edges = attachment_orders.gather(index=best_edges[:, :, None, None].expand(-1, -1, -1, num_attachment_orders), dim=2).squeeze(2)
+        poses_logits_best_edges = poses.gather(index=best_edges[:, :, None, None].expand(-1, -1, -1, num_poses), dim=2).squeeze(2)
+        morphs_logits_best_edges: list[torch.Tensor] = []
+        for m in morphs:
+            num_morphs = m.shape[-1]
+            logits = m.gather(index=best_edges[:, :, None, None, None].expand(-1, -1, -1, num_poses, num_morphs), dim=2).squeeze(2)
+            morphs_logits_best_edges.append(logits)
 
         labels_best_edges = label_logits_best_edges.argmax(-1)
+        poses_best_edges = poses_logits_best_edges.argmax(-1)
         attachment_orders_best_edges = attachment_logits_best_edges.argmax(-1)
+        morphs_best_edges: list[torch.Tensor] = []
+        for ml in morphs_logits_best_edges:
+            num_morph_types = ml.shape[-1]
+            predicted_morph_types = ml.gather(index=poses_best_edges[:, :, None, None].expand(-1, -1, -1, num_morph_types), dim=2).squeeze(2).argmax(-1)
+            morphs_best_edges.append(predicted_morph_types)
+            pass
 
-        return best_edges, labels_best_edges, attachment_orders_best_edges, (edges, joint_logits)
+        return best_edges, labels_best_edges, poses_best_edges, attachment_orders_best_edges, (*morphs_best_edges,), (edges, joint_logits)

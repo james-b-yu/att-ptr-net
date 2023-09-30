@@ -38,6 +38,9 @@ class Terminal(BaseModel):
     
     def __getitem__(self, item):
         return getattr(self, item)
+    
+    def __setitem__(self, item, attr):
+        return setattr(self, item, attr)
 
 
 
@@ -419,7 +422,7 @@ class ConstituentTree(BaseModel):
         raise NotImplementedError("Please implement this method via monkey-patching.")
     
     @classmethod
-    def from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str]) -> "ConstituentTree":
+    def from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str], poses: Sequence[str], morphs: dict[str, list[str]]) -> "ConstituentTree":
         raise NotImplementedError("Please implement this method via monkey-patching.")
 
 class Dependency(BaseModel):
@@ -541,14 +544,15 @@ class DependencyTree(BaseModel):
         return f"TreePlot[{{{', '.join(edges)}}}, Top, 0, VertexLabels -> Automatic, DirectedEdges -> True]"
 
     @classmethod
-    def from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str]):
-        assert len(syms) == len(heads) and len(orders) == len(syms) and len(words) == len(orders)
+    def from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str], poses: Sequence[str], morphs: dict[str, list[str]]):
+        assert len(syms) == len(heads) and len(orders) == len(syms) and len(words) == len(orders) == len(poses)
+        assert all(len(morph) == len(syms) for _, morph in morphs.items())
         num_words = len(heads)
 
         modifiers: dict[int, dict[int, list[Dependency]]] = defaultdict(lambda: defaultdict(lambda x=None: []))
         terminals: dict[int, Terminal] = {}
 
-        for child, (head, order, word, sym) in enumerate(zip(heads, orders, words, syms), start=1):
+        for child, (head, order, word, sym, pos) in enumerate(zip(heads, orders, words, syms, poses), start=1):
             if isinstance(head, torch.Tensor):
                 head = int(head.item())
             if isinstance(order, torch.Tensor):
@@ -556,8 +560,12 @@ class DependencyTree(BaseModel):
 
             terminals[child] = Terminal(
                 idx=child,
-                word=word
+                word=word,
+                pos=pos
             )
+
+            for prop in CONSTS["morph_props"]:
+                terminals[child][prop] = morphs[prop][child]
 
             # child with head of 0 is the root node of the d-tree; don't add it to modifiers dict
             if head == 0:
@@ -684,8 +692,8 @@ def d_to_c(cls: type[ConstituentTree], d: DependencyTree) -> ConstituentTree:
     return res
 
 @classmethod
-def c_from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str]) -> ConstituentTree:
-    d_tree = DependencyTree.from_collection(heads, orders, words, syms)
+def c_from_collection(cls, heads: Sequence[int] | torch.Tensor, orders: Sequence[int] | torch.Tensor, words: Sequence[str], syms: Sequence[str], poses: Sequence[str], morphs: dict[str, list[str]]) -> ConstituentTree:
+    d_tree = DependencyTree.from_collection(heads, orders, words, syms, poses, morphs)
     return ConstituentTree.from_d_tree(d_tree)
 
 ConstituentTree.from_d_tree = d_to_c # type: ignore

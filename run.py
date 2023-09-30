@@ -94,7 +94,7 @@ print(f"Model has {sum([p.numel() for p in model.parameters()]):_} parameters".r
 optim = torch.optim.SGD(model.parameters(), lr=5e-2, weight_decay=1e-4, momentum=0.9, nesterov=True) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=4, gamma=0.9, last_epoch=-1)
 
-num_epochs = 100
+num_epochs = 15
 
 train_total_sentences = len(train_dataloader.dataset)
 dev_total_sentences = len(dev_dataloader.dataset)
@@ -241,24 +241,35 @@ for i in range(num_epochs):
                 # now perform f1 evaluation
                 rate = CONSTS["train_tree_rate"] if training else CONSTS["dev_tree_rate"]
                 if random.random() <= rate: # only generate trees for this batch (100 * rate) % of the time
-                    best_edges, labels_best_edges, attachment_orders_best_edges, (edges, joint_logits) = model._find_tree(sentence_lengths, self_attention, labels, attachment_orders, indices)
+                    best_edges, labels_best_edges, poses_best_edges, attachment_orders_best_edges, morphs_best_edges, (edges, joint_logits) = model._find_tree(sentence_lengths, self_attention, labels, poses, attachment_orders, *morphs, indices=indices)
 
                     for s_num in range(batch_size):
                         try:
-                            tree_words = words[s_num, :sentence_lengths[s_num]].to("cpu")
+                            tree_words = words[s_num, :sentence_lengths[s_num]].cpu()
 
-                            tree_heads = best_edges[s_num, :sentence_lengths[s_num]].to("cpu")
-                            tree_syms = labels_best_edges[s_num, :sentence_lengths[s_num]].to("cpu")
-                            tree_attachment_orders = attachment_orders_best_edges[s_num, :sentence_lengths[s_num]].to("cpu")
+                            tree_heads = best_edges[s_num, :sentence_lengths[s_num]].cpu()
+                            tree_syms = labels_best_edges[s_num, :sentence_lengths[s_num]].cpu()
+                            tree_poses = poses_best_edges[s_num, :sentence_lengths[s_num]].cpu()
+                            tree_attachment_orders = attachment_orders_best_edges[s_num, :sentence_lengths[s_num]].cpu()
+                            tree_morphs = [m[s_num, :sentence_lengths[s_num]].cpu() for m in morphs_best_edges]
 
-                            t_tree_heads = target_heads[s_num, :sentence_lengths[s_num]].to("cpu")
-                            t_tree_syms = target_syms[s_num, :sentence_lengths[s_num]].to("cpu")
-                            t_tree_attachment_orders = target_attachment_orders[s_num, :sentence_lengths[s_num]].to("cpu")
+                            t_tree_heads = target_heads[s_num, :sentence_lengths[s_num]].cpu()
+                            t_tree_syms = target_syms[s_num, :sentence_lengths[s_num]].cpu()
+                            t_tree_poses = target_poses[s_num, :sentence_lengths[s_num]].cpu()
+                            t_tree_attachment_orders = target_attachment_orders[s_num, :sentence_lengths[s_num]].cpu()
+                            t_tree_morphs = [m[s_num, :sentence_lengths[s_num]].cpu() for m in target_morphs]
 
                             the_sentence = [inverse_word_dict[w.item()] if w > 0 else new_words_dict[-w.item()] for w in tree_words]
 
-                            c_tree = ConstituentTree.from_collection(heads=tree_heads, syms=[inverse_sym_dict[l.item()] for l in tree_syms], orders=tree_attachment_orders, words=the_sentence)
-                            t_c_tree = ConstituentTree.from_collection(heads=t_tree_heads, syms=[inverse_sym_dict[l.item()] for l in t_tree_syms], orders=t_tree_attachment_orders, words=the_sentence)
+                            # TODO: keep morphs as dictionary instead of tuple
+                            c_tree = ConstituentTree.from_collection(heads=tree_heads, syms=[inverse_sym_dict[l.item()] for l in tree_syms], poses=[inverse_pos_dict[p.item()] for p in tree_poses], orders=tree_attachment_orders, words=the_sentence, morphs={
+                                prop: [inverse_morph_dicts[prop][m.item()] for m in tree_morphs[morph_i]]
+                                for morph_i, prop in enumerate(CONSTS["morph_props"])
+                            })
+                            t_c_tree = ConstituentTree.from_collection(heads=t_tree_heads, syms=[inverse_sym_dict[l.item()] for l in t_tree_syms], poses=[inverse_pos_dict[p.item()] for p in tree_poses], orders=t_tree_attachment_orders, words=the_sentence, morphs={
+                                prop: [inverse_morph_dicts[prop][m.item()] for m in tree_morphs[morph_i]]
+                                for morph_i, prop in enumerate(CONSTS["morph_props"])
+                            })
 
                             brackets.append(c_tree.get_bracket(zero_indexed=True, ignore_words=True))
                             brackets_structure.append(c_tree.get_bracket(ignore_all_syms=True, zero_indexed=True, ignore_words=True))
