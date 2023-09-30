@@ -1,6 +1,12 @@
 from os import path
 
 CONSTS = {
+    "pos_replacements": {
+        "$(": "SSZ", # Sonstige Satzzeichen/Satzintern
+        "$,": "K",   # Komma
+        "$.": "SBI", # Satzbeendende Interpunktion
+        # "--": "NZ",  # Nicht zugeordnet
+    },
     "morph_na": "--",
     "morph_props": ["case", "number", "gender", "person", "degree", "tense", "mood"],
     "pos_unk_pos": "<UNKPOS>",

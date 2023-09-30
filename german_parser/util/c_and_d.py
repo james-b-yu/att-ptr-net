@@ -334,7 +334,7 @@ class ConstituentTree(BaseModel):
     def get_newick(self):
         return self._get_newick(self.root) + ";"
 
-    def get_bracket(self, node: int|None=None, ignore_pre_terminal_sym: bool=False, ignore_non_terminal_sym: bool=False, ignore_all_syms: bool=False, zero_indexed=False, ignore_words=False):
+    def get_bracket(self, node: int|None=None, ignore_pre_terminal_sym: bool=False, ignore_non_terminal_sym: bool=False, ignore_all_syms: bool=False, zero_indexed=False, ignore_words=False, pos_replacements: dict[str, str] = {}):
         """generate bracket notation for the tree
 
         Args:
@@ -343,6 +343,7 @@ class ConstituentTree(BaseModel):
             ignore_non_terminal_sym (bool, optional): replace all non-pre-terminal symbols with ?. Defaults to False.
             ignore_all_syms (bool, optional): replace all symbols with ?. Defaults to False.
             zero_indexed (bool, optional): let leaf indices be 0-indexed. By default, they are 1-indexed. Defaults to False.
+            pos_replacements (dict[str, str], optional): replace all POS (pre-terminal symbols) in keys with the corresponding value
 
         Returns:
             _type_: _description_
@@ -356,12 +357,13 @@ class ConstituentTree(BaseModel):
                                     ignore_non_terminal_sym=ignore_non_terminal_sym,
                                     ignore_all_syms=ignore_all_syms,
                                     zero_indexed=zero_indexed,
-                                    ignore_words=ignore_words
+                                    ignore_words=ignore_words,
+                                    pos_replacements=pos_replacements
                                     )
         
         c = self.constituents[node]
         if c.is_pre_terminal:
-            return f"({'?' if ignore_pre_terminal_sym or ignore_all_syms else c.sym} {c.id + offset}={self.terminals[node].word if not ignore_words else 'Wort'})"
+            return f"({'?' if ignore_pre_terminal_sym or ignore_all_syms else (c.sym if c.sym not in pos_replacements else pos_replacements[c.sym])} {c.id + offset}={self.terminals[node].word if not ignore_words else 'Wort'})"
         
         res = f"({'?' if ignore_non_terminal_sym or ignore_all_syms else c.sym} "
         for child in c.children:
@@ -370,7 +372,8 @@ class ConstituentTree(BaseModel):
                                     ignore_non_terminal_sym=ignore_non_terminal_sym,
                                     ignore_all_syms=ignore_all_syms,
                                     zero_indexed=zero_indexed,
-                                    ignore_words=ignore_words
+                                    ignore_words=ignore_words,
+                                    pos_replacements=pos_replacements
                                     )
             
         res += ")"

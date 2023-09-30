@@ -271,10 +271,10 @@ for i in range(num_epochs):
                                 for morph_i, prop in enumerate(CONSTS["morph_props"])
                             })
 
-                            brackets.append(c_tree.get_bracket(zero_indexed=True, ignore_words=True))
+                            brackets.append(c_tree.get_bracket(zero_indexed=True, ignore_words=True, pos_replacements=CONSTS["pos_replacements"]))
                             brackets_structure.append(c_tree.get_bracket(ignore_all_syms=True, zero_indexed=True, ignore_words=True))
 
-                            t_brackets.append(t_c_tree.get_bracket(zero_indexed=True, ignore_words=True))
+                            t_brackets.append(t_c_tree.get_bracket(zero_indexed=True, ignore_words=True, pos_replacements=CONSTS["pos_replacements"]))
                             t_brackets_structure.append(t_c_tree.get_bracket(ignore_all_syms=True, zero_indexed=True, ignore_words=True))
                             
                         except Exception as e:
