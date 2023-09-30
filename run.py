@@ -11,7 +11,7 @@ import dill as pickle
 
 from german_parser.model import TigerModel
 import torch.nn.utils.clip_grad as utils
-from german_parser.util import get_progress_bar
+from german_parser.util import get_progress_bar, get_filename
 from german_parser.util.const import CONSTS
 from german_parser.util.c_and_d import ConstituentTree, DependencyTree
 
@@ -101,17 +101,6 @@ dev_total_sentences = len(dev_dataloader.dataset)
 
 total_iteration_train = 0
 total_iteration_dev = 0
-
-filename_prefix = f"tiger_model_{strftime('%Y_%m_%d-%I_%M_%S_%p')}"
-
-def get_filename(epoch: int):
-    """get filename of model (without extension)
-
-    Args:
-        epoch (int): 0-indexed epoch number
-    """
-
-    return f"{filename_prefix}_epoch_{epoch + 1}"
 
 for i in range(num_epochs):
     for training in (True, None, False):

@@ -1,6 +1,7 @@
 import re
 
 from math import floor, ceil
+from time import strftime
 
 def str_to_newick_str(text: str) -> str:
     quote = "'"
@@ -29,3 +30,14 @@ def get_progress_bar(progress: float, num_bars: int = 10):
     progress_frac_part = progress * num_bars - floor(progress * num_bars)
     middle_bar = "█ ▏▎▍▌▋▊▉"[ceil(progress_frac_part * 8)] if progress != 0 else ""
     return left_bars + middle_bar + right_bars
+
+filename_prefix = f"tiger_model_{strftime('%Y_%m_%d-%I_%M_%S_%p')}"
+
+def get_filename(epoch: int):
+    """get filename of model (without extension)
+
+    Args:
+        epoch (int): 0-indexed epoch number
+    """
+
+    return f"{filename_prefix}_epoch_{epoch + 1}"
