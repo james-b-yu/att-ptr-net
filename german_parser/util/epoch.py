@@ -101,7 +101,7 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
         pred_poses_confusion_matrix = torch.einsum("bi,bj->ij", target_poses_one_shot, pred_poses_one_shot) # m[i, j] = number of examples for which the true pos is i and was classed as j
 
         # perform backpropagation
-        if training:
+        if training and not loss.isnan():
             loss.backward()
             nn_utils.clip_grad_norm_(model.parameters(), max_norm=gradient_clipping)
             optim.step()
@@ -114,6 +114,9 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
             loss_orders.detach_()
             loss_morph.detach_()
             loss.detach_()
+        
+        if loss.isnan():
+            print("WARNING: NaN Loss")
 
         torch.cuda.empty_cache()
         # save metrics
