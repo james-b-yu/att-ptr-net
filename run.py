@@ -77,7 +77,7 @@ model = TigerModel(
     dec_morph_mlp_dim=128,
 
     morph_pos_interaction_dim=128,
-    morph_prop_classes=[len(inverse_morph_dicts[prop]) for prop in CONSTS["morph_props"]],
+    morph_prop_classes={prop: len(imd) for prop, imd in inverse_morph_dicts.items()},
 
     num_biaffine_attention_classes=2,
 
@@ -126,7 +126,6 @@ for i in range(num_epochs):
             epoch_num=i,
             eval_dir=CONSTS["eval_dir"],
             gradient_clipping=1,
-            morph_props=CONSTS["morph_props"],
             pos_replacements=CONSTS["pos_replacements"],
             scheduler=scheduler,
             summary_writer=summary_writer,

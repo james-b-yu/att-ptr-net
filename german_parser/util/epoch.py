@@ -20,7 +20,7 @@ import re
 
 from torch.utils.tensorboard import SummaryWriter
 
-def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.device | str, epoch_num: int, dataloader: DataLoader[TigerDataset], new_words_dict: dict[int, str], inverse_word_dict: dict[int, str], inverse_sym_dict: dict[int, str], inverse_pos_dict: dict[int, str], inverse_morph_dicts: dict[str, dict[int, str]], tree_gen_rate: float, morph_props: tuple[str], discodop_config_file: str, eval_dir, gradient_clipping=1, scheduler: torch.optim.lr_scheduler.LRScheduler|None=None, summary_writer: SummaryWriter|None=None, pos_replacements: dict[str, str]={}, training=False):
+def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.device | str, epoch_num: int, dataloader: DataLoader[TigerDataset], new_words_dict: dict[int, str], inverse_word_dict: dict[int, str], inverse_sym_dict: dict[int, str], inverse_pos_dict: dict[int, str], inverse_morph_dicts: dict[str, dict[int, str]], tree_gen_rate: float, discodop_config_file: str, eval_dir, gradient_clipping=1, scheduler: torch.optim.lr_scheduler.LRScheduler|None=None, summary_writer: SummaryWriter|None=None, pos_replacements: dict[str, str]={}, training=False):
     total_sentences = len(dataloader.dataset) #type:ignore
 
     sum_sentences = 0
@@ -39,7 +39,7 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
     t_brackets = []
     t_brackets_structure = []
 
-    input: tuple[torch.Tensor, ...]
+    input: tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]
 
     optim.zero_grad(set_to_none=True)
     for j, input in (enumerate(dataloader)):
@@ -48,7 +48,7 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
         else:
             model.eval()
 
-        sentence_lengths, words, tokens, token_transformations, token_lengths, target_heads, target_syms, target_poses, target_attachment_orders, *target_morphs = input
+        sentence_lengths, words, tokens, token_transformations, token_lengths, target_heads, target_syms, target_poses, target_attachment_orders, target_morphs = input
         batch_size = words.shape[0]
         sum_sentences += batch_size
 
@@ -60,10 +60,10 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
         tokens = tokens.to(device=device)
         token_transformations = token_transformations.to(device=device)
 
-        for m, target_morph in enumerate(target_morphs):
+        for m, target_morph in target_morphs.items():
             target_morphs[m] = target_morph.to(device=device)
 
-        self_attention, labels, poses, attachment_orders, *morphs, indices = model((words, tokens, sentence_lengths, token_transformations), new_words_dict)
+        self_attention, labels, poses, attachment_orders, morphs, indices = model((words, tokens, sentence_lengths, token_transformations), new_words_dict)
 
         loss_attention = F.cross_entropy(self_attention[indices], target_heads[indices])
         loss_labels    = F.cross_entropy(labels[indices, target_heads[indices]], target_syms[indices])
@@ -72,7 +72,7 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
 
         loss_morph = torch.zeros(1, device=device, requires_grad=True)
 
-        for m, morph_porp in enumerate(morph_props):
+        for m in target_morphs.keys():
             morph_pred_flattened = morphs[m][indices, target_heads[indices], target_poses[indices]]
             morph_target_flattened = target_morphs[m][indices]
 
@@ -121,7 +121,7 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
 
             # now perform f1 evaluation
             if random.random() <= tree_gen_rate: # only generate trees for this batch (100 * rate) % of the time
-                best_edges, labels_best_edges, poses_best_edges, attachment_orders_best_edges, morphs_best_edges, (edges, joint_logits) = model._find_tree(sentence_lengths, self_attention, labels, poses, attachment_orders, *morphs, indices=indices)
+                best_edges, labels_best_edges, poses_best_edges, attachment_orders_best_edges, morphs_best_edges, (edges, joint_logits) = model._find_tree(sentence_lengths, self_attention, labels, poses, attachment_orders, morphs, indices=indices)
 
                 for s_num in range(batch_size):
                     try:
@@ -131,24 +131,24 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
                         tree_syms = labels_best_edges[s_num, :sentence_lengths[s_num]].cpu()
                         tree_poses = poses_best_edges[s_num, :sentence_lengths[s_num]].cpu()
                         tree_attachment_orders = attachment_orders_best_edges[s_num, :sentence_lengths[s_num]].cpu()
-                        tree_morphs = [m[s_num, :sentence_lengths[s_num]].cpu() for m in morphs_best_edges]
+                        tree_morphs = {key: value[s_num, :sentence_lengths[s_num]].cpu() for key, value in morphs_best_edges.items()}
 
                         t_tree_heads = target_heads[s_num, :sentence_lengths[s_num]].cpu()
                         t_tree_syms = target_syms[s_num, :sentence_lengths[s_num]].cpu()
                         t_tree_poses = target_poses[s_num, :sentence_lengths[s_num]].cpu()
                         t_tree_attachment_orders = target_attachment_orders[s_num, :sentence_lengths[s_num]].cpu()
-                        t_tree_morphs = [m[s_num, :sentence_lengths[s_num]].cpu() for m in target_morphs]
+                        t_tree_morphs = {key: value[s_num, :sentence_lengths[s_num]].cpu() for key, value in target_morphs.items()}
 
                         the_sentence = [inverse_word_dict[int(w.item())] if w > 0 else new_words_dict[-int(w.item())] for w in tree_words]
 
                         # TODO: keep morphs as dictionary instead of tuple
                         c_tree = ConstituentTree.from_collection(heads=tree_heads, syms=[inverse_sym_dict[int(l.item())] for l in tree_syms], poses=[inverse_pos_dict[int(p.item())] for p in tree_poses], orders=tree_attachment_orders, words=the_sentence, morphs={
-                            prop: [inverse_morph_dicts[prop][int(m.item())] for m in tree_morphs[morph_i]]
-                            for morph_i, prop in enumerate(morph_props)
+                            prop: [inverse_morph_dicts[prop][int(v.item())] for v in value]
+                            for prop, value in tree_morphs.items()
                         })
                         t_c_tree = ConstituentTree.from_collection(heads=t_tree_heads, syms=[inverse_sym_dict[int(l.item())] for l in t_tree_syms], poses=[inverse_pos_dict[int(p.item())] for p in t_tree_poses], orders=t_tree_attachment_orders, words=the_sentence, morphs={
-                            prop: [inverse_morph_dicts[prop][int(m.item())] for m in t_tree_morphs[morph_i]]
-                            for morph_i, prop in enumerate(morph_props)
+                            prop: [inverse_morph_dicts[prop][int(v.item())] for v in value]
+                            for prop, value in t_tree_morphs.items()
                         })
 
                         brackets.append(c_tree.get_bracket(zero_indexed=True, ignore_words=True, pos_replacements=pos_replacements))

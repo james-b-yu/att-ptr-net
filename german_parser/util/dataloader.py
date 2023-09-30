@@ -3,7 +3,7 @@ import random
 from math import floor
 from torch.utils.data import Dataset
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, default_collate
@@ -183,7 +183,7 @@ class TigerDataset(Dataset):
         self.tokens_transform_matrix = self.tokens_transform_matrix[:, :, :self.max_tokens_length]
 
     @classmethod
-    def _sorted_collate(cls, sentence_lengths: torch.Tensor, *data: torch.Tensor, dont_trim_idx: list[int]=[]):
+    def _sorted_collate(cls, sentence_lengths: torch.Tensor, *data: torch.Tensor | dict[Any, torch.Tensor], dont_trim_idx: list[int]=[]):
         """given a batch of word codes, sentence lengths, and head targets, sorts them by sentence length in descending order, and returns the sorted batch, truncated to remove unnecessary padding 1s
 
         Args:
@@ -203,7 +203,15 @@ class TigerDataset(Dataset):
         sentence_lengths_sorted = sentence_lengths[arg_sort]
         T_batch = sentence_lengths_sorted[0] # maximum sentence size within the batch
         
-        return (sentence_lengths_sorted, *[d[arg_sort][:, :T_batch] if i not in dont_trim_idx else d[arg_sort] for i, d in enumerate(data)])
+        return (sentence_lengths_sorted, *[
+            (d[arg_sort][:, :T_batch] if i not in dont_trim_idx else d[arg_sort])
+            if not isinstance(d, dict)
+            else {
+                key: value[arg_sort][:, :T_batch] if i not in dont_trim_idx else value[arg_sort]
+                for key, value in d.items()
+            }
+            for i, d in enumerate(data)]
+            )
 
     def __len__(self):
         return self.num_sentences
@@ -229,7 +237,10 @@ class TigerDataset(Dataset):
                 self.syms[idx],                     # 5
                 self.poses[idx],                    # 6
                 self.attachment_orders[idx],        # 7
-                *[self.morph_targets[prop][idx] for prop in CONSTS["morph_props"]] # 8
+                {
+                    key: value[idx]
+                    for key, value in self.morph_targets.items()
+                } # 8
             )
         else:
             idx = torch.as_tensor(idx)
@@ -243,7 +254,10 @@ class TigerDataset(Dataset):
                 self.syms[idx],                     # 5
                 self.poses[idx],                    # 6
                 self.attachment_orders[idx],        # 7
-                *[self.morph_targets[prop][idx] for prop in CONSTS["morph_props"]] # 8
+                {
+                    key: value[idx]
+                    for key, value in self.morph_targets.items()
+                } # 8
             , dont_trim_idx=[1, 3])
 
     def get_new_words_dict(self):

@@ -34,7 +34,7 @@ class TigerModel(nn.Module):
         num_layers: int = Field(default=1)
         dropout: float = Field(default=0.2)
 
-    def __init__(self, bert_model: BertLMHeadModel, bert_embedding_dim: int, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, enc_pos_mlp_dim: int, dec_pos_mlp_dim: int, enc_morph_mlp_dim: int, dec_morph_mlp_dim: int, max_attachment_order: int, num_constituent_labels: int, num_terminal_poses: int, morph_prop_classes: Sequence[int], morph_pos_interaction_dim: int, num_biaffine_attention_classes=2, beam_size=10):
+    def __init__(self, bert_model: BertLMHeadModel, bert_embedding_dim: int, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, enc_pos_mlp_dim: int, dec_pos_mlp_dim: int, enc_morph_mlp_dim: int, dec_morph_mlp_dim: int, max_attachment_order: int, num_constituent_labels: int, num_terminal_poses: int, morph_prop_classes: dict[str, int], morph_pos_interaction_dim: int, num_biaffine_attention_classes=2, beam_size=10):
         super().__init__()
 
         # save the bert model
@@ -121,8 +121,12 @@ class TigerModel(nn.Module):
 
         # define morphology mlps
         self.morph_prop_classes = morph_prop_classes
-        self.enc_morph_mlps = nn.ModuleList([nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_morph_mlp_dim) for _ in self.morph_prop_classes])
-        self.dec_morph_mlps = nn.ModuleList([nn.Linear(self.dec_lstm_params.hidden_size, self.dec_morph_mlp_dim) for _ in self.morph_prop_classes])
+        self.enc_morph_mlps = nn.ModuleDict({
+            prop: nn.Linear(2 * self.enc_lstm_params.hidden_size, self.enc_morph_mlp_dim) for prop in self.morph_prop_classes
+        })
+        self.dec_morph_mlps = nn.ModuleDict({
+            prop: nn.Linear(self.dec_lstm_params.hidden_size, self.dec_morph_mlp_dim) for prop in self.morph_prop_classes
+        })
 
         # define morphology part-of-speech interaction parameter
         self.morph_pos_interaction_dim = morph_pos_interaction_dim
@@ -162,10 +166,10 @@ class TigerModel(nn.Module):
 
         # TODO: experiment with a 4-affine layer
         # define 3-affine layer for morphologies
-        self.affine_morph_classifiers = nn.ModuleList([
-            MAffine(n, self.dec_morph_mlp_dim, self.enc_morph_mlp_dim, self.morph_pos_interaction_dim)
-            for n in self.morph_prop_classes
-        ])
+        self.affine_morph_classifiers = nn.ModuleDict({
+            key: MAffine(n, self.dec_morph_mlp_dim, self.enc_morph_mlp_dim, self.morph_pos_interaction_dim)
+            for key, n in self.morph_prop_classes.items()
+        })
 
         self.beam_size = beam_size
 
@@ -282,13 +286,13 @@ class TigerModel(nn.Module):
         poses: torch.Tensor = self.biaffine_terminal_classifier(enc_out_pos, dec_out_pos)
 
         # TASK 5: predict MORPHs
-        morphs: list[torch.Tensor] = []
-        for i in range(len(self.morph_prop_classes)):
-            enc_out_morph = F.elu(self.enc_morph_mlps[i](enc_out_pad))
-            dec_out_morph = F.elu(self.dec_morph_mlps[i](dec_out_pad))
-            morph = self.affine_morph_classifiers[i](dec_out_morph, enc_out_morph, self.morph_pos_interactor.expand(B, -1, -1), num_batch_dims=1)
+        morphs: dict[str, torch.Tensor] = {}
+        for prop in self.morph_prop_classes:
+            enc_out_morph = F.elu(self.enc_morph_mlps[prop](enc_out_pad))
+            dec_out_morph = F.elu(self.dec_morph_mlps[prop](dec_out_pad))
+            morph = self.affine_morph_classifiers[prop](dec_out_morph, enc_out_morph, self.morph_pos_interactor.expand(B, -1, -1), num_batch_dims=1)
             self._mask_out_(morph, lengths)
-            morphs.append(morph)
+            morphs[prop] = morph
             pass
 
         self._mask_out_(self_attention, lengths)
@@ -300,7 +304,7 @@ class TigerModel(nn.Module):
 
         indices = self._get_batch_indices(lengths)
 
-        return self_attention, constituent_labels, poses, attachment_orders, *morphs, indices
+        return self_attention, constituent_labels, poses, attachment_orders, morphs, indices
 
     def _mask_out_(self, out: torch.Tensor, lengths: torch.Tensor):
         """mask out unneeded output elements IN PLACE, given sentence lengths
@@ -343,11 +347,11 @@ class TigerModel(nn.Module):
 
 
         _, lengths = input
-        self_attention, constituent_labels, poses, attachment_orders, *morphs, indices = self.forward(input, new_words_dict)
+        self_attention, constituent_labels, poses, attachment_orders, morphs, indices = self.forward(input, new_words_dict)
 
-        return self._find_tree(lengths, self_attention, constituent_labels, poses, attachment_orders, *morphs, indices=indices)
+        return self._find_tree(lengths, self_attention, constituent_labels, poses, attachment_orders, morphs, indices=indices)
     
-    def _find_tree(self, lengths: torch.Tensor, self_attention: torch.Tensor, constituent_labels: torch.Tensor, poses: torch.Tensor, attachment_orders: torch.Tensor, *morphs: torch.Tensor, indices: torch.Tensor):
+    def _find_tree(self, lengths: torch.Tensor, self_attention: torch.Tensor, constituent_labels: torch.Tensor, poses: torch.Tensor, attachment_orders: torch.Tensor, morphs: dict[str, torch.Tensor], indices: torch.Tensor):
         # self_attention has size (B, T, T + 1)
         # NOTE: self_attention indices are 1-indexed. index 0 corresponds to virtual root of D-tree (which is different from virtual root of C-tree)
 
@@ -431,20 +435,24 @@ class TigerModel(nn.Module):
         label_logits_best_edges = constituent_labels.gather(index=best_edges[:, :, None, None].expand(-1, -1, -1, num_labels), dim=2).squeeze(2)
         attachment_logits_best_edges = attachment_orders.gather(index=best_edges[:, :, None, None].expand(-1, -1, -1, num_attachment_orders), dim=2).squeeze(2)
         poses_logits_best_edges = poses.gather(index=best_edges[:, :, None, None].expand(-1, -1, -1, num_poses), dim=2).squeeze(2)
-        morphs_logits_best_edges: list[torch.Tensor] = []
-        for m in morphs:
+        morphs_logits_best_edges: dict[str, torch.Tensor] = {}
+        for prop, m in morphs.items():
             num_morphs = m.shape[-1]
             logits = m.gather(index=best_edges[:, :, None, None, None].expand(-1, -1, -1, num_poses, num_morphs), dim=2).squeeze(2)
-            morphs_logits_best_edges.append(logits)
+            morphs_logits_best_edges[prop] = logits
 
         labels_best_edges = label_logits_best_edges.argmax(-1)
         poses_best_edges = poses_logits_best_edges.argmax(-1)
         attachment_orders_best_edges = attachment_logits_best_edges.argmax(-1)
-        morphs_best_edges: list[torch.Tensor] = []
-        for ml in morphs_logits_best_edges:
+        
+        morphs_best_edges: dict[str, torch.Tensor] = {}
+
+        for prop, ml in morphs_logits_best_edges.items():
             num_morph_types = ml.shape[-1]
             predicted_morph_types = ml.gather(index=poses_best_edges[:, :, None, None].expand(-1, -1, -1, num_morph_types), dim=2).squeeze(2).argmax(-1)
-            morphs_best_edges.append(predicted_morph_types)
+            morphs_best_edges[prop] = predicted_morph_types
             pass
 
-        return best_edges, labels_best_edges, poses_best_edges, attachment_orders_best_edges, (*morphs_best_edges,), (edges, joint_logits)
+        return best_edges, labels_best_edges, poses_best_edges, attachment_orders_best_edges, morphs_best_edges, (edges, joint_logits)
+    
+    
