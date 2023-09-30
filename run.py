@@ -11,7 +11,7 @@ import dill as pickle
 
 from german_parser.model import TigerModel
 import torch.nn.utils.clip_grad as utils
-from german_parser.util import get_progress_bar, get_filename
+from german_parser.util import get_progress_bar, get_filename, one_epoch
 from german_parser.util.const import CONSTS
 from german_parser.util.c_and_d import ConstituentTree, DependencyTree
 
@@ -110,241 +110,27 @@ for i in range(num_epochs):
             pickle.dump(model, open(filename, "wb"))
             continue
 
-        if training == "f1":
-            # calculate f1 scores
-            pass
-        
-        assert training in (True, False)
-
-        sum_sentences = 0
-        epoch_length = len(train_dataloader if training else dev_dataloader)
-        epoch_start_time = time()
-
-        epoch_attention_loss = 0
-        epoch_label_loss = 0
-        epoch_pos_loss = 0
-        epoch_order_loss = 0
-        epoch_morph_loss = 0
-        epoch_total_loss = 0
-
-        brackets = []
-        brackets_structure = []
-        t_brackets = []
-        t_brackets_structure = []
-
-        new_words_dict = train_new_words if training else dev_new_words
-
-        input: tuple[torch.Tensor, ...]
-
-        optim.zero_grad(set_to_none=True)
-        for j, input in (enumerate(train_dataloader) if training else enumerate(dev_dataloader)):
-            if j > MAX_ITER:
-                continue
-
-            if training:
-                model.train()
-            else:
-                model.eval()
-
-            sentence_lengths, words, tokens, token_transformations, token_lengths, target_heads, target_syms, target_poses, target_attachment_orders, *target_morphs = input
-            batch_size = words.shape[0]
-            sum_sentences += batch_size
-
-            words = words.to(device=DEVICE_NAME)
-            target_heads = target_heads.to(device=DEVICE_NAME)
-            target_syms = target_syms.to(device=DEVICE_NAME)
-            target_poses = target_poses.to(device=DEVICE_NAME)
-            target_attachment_orders = target_attachment_orders.to(device=DEVICE_NAME)
-            tokens = tokens.to(device=DEVICE_NAME)
-            token_transformations = token_transformations.to(device=DEVICE_NAME)
-
-            for m, target_morph in enumerate(target_morphs):
-                target_morphs[m] = target_morph.to(device=DEVICE_NAME)
-
-            self_attention, labels, poses, attachment_orders, *morphs, indices = model((words, tokens, sentence_lengths, token_transformations), new_words_dict)
-
-            loss_attention = F.cross_entropy(self_attention[indices], target_heads[indices])
-            loss_labels    = F.cross_entropy(labels[indices, target_heads[indices]], target_syms[indices])
-            loss_poses     = F.cross_entropy(poses[indices, target_heads[indices]], target_poses[indices])
-            loss_orders    = F.cross_entropy(attachment_orders[indices, target_heads[indices]], target_attachment_orders[indices])
-
-            loss_morph = torch.zeros(1, device=DEVICE_NAME, requires_grad=True)
-
-            for m, morph_porp in enumerate(CONSTS["morph_props"]):
-                morph_pred_flattened = morphs[m][indices, target_heads[indices], target_poses[indices]]
-                morph_target_flattened = target_morphs[m][indices]
-
-                loss_morph = loss_morph + F.cross_entropy(morph_pred_flattened, morph_target_flattened)
-
-
-            loss = (loss_attention + loss_labels + loss_poses + loss_orders + loss_morph)
-
-            # perform backpropagation
-            if training:
-                loss.backward()
-                utils.clip_grad_norm_(model.parameters(), max_norm=1)
-                optim.step()
-                optim.zero_grad(set_to_none=True)
-
-                total_iteration_train += 1
-
-                # detach and empty cache
-                loss_attention.detach_()
-                loss_labels.detach_()
-                loss_poses.detach_()
-                loss_orders.detach_()
-                loss_morph.detach_()
-                loss.detach_()
-            else:
-                total_iteration_dev += 1
-
-            torch.cuda.empty_cache()
-            # save metrics
-            with torch.no_grad():
-                epoch_attention_loss += loss_attention.item()
-                epoch_label_loss += loss_labels.item()
-                epoch_pos_loss += loss_poses.item()
-                epoch_order_loss += loss_orders.item()
-                epoch_morph_loss += loss_morph.item()
-                epoch_total_loss += loss.item()
-
-                progress = sum_sentences / (train_total_sentences if training else dev_total_sentences)
-                eta_seconds = round((time() - epoch_start_time) * (1 - progress) / progress)
-                eta_time = strftime("%H:%M", gmtime(time() + eta_seconds))
-                eta_str = timedelta(seconds=eta_seconds)
-                speed = round(sum_sentences / (time() - epoch_start_time))
-
-                print(f"EPOCH {i + 1:5d} {'TRN' if training else 'DEV'} {get_progress_bar(progress, 20)} ({100 * progress:6.2f}%) ATTENTION {loss_attention.item():6.4e} LABEL {loss_labels.item():6.4e} POS {loss_poses.item():6.4e} ORDERS {loss_orders.item():6.4e} MORPH {loss_morph.item():6.4e} TOTAL {loss.item():6.4e} LR {scheduler.get_last_lr()[0]:4.2e} ETA {eta_str} @ {eta_time} ({speed:4d} ex s⁻¹)", end="\r", flush=True)
-
-
-                for name, iteration in [(f"epoch_{i + 1}_{'trn' if training else 'dev'}", j), (f"all_epochs_{'trn' if training else 'dev'}", total_iteration_train if training else total_iteration_dev)]:
-                    summary_writer.add_scalars(name, {
-                        "loss_attention": loss_attention,
-                        "loss_labels": loss_labels,
-                        "loss_poses": loss_poses,
-                        "loss_orders": loss_orders,
-                        "loss_morph": loss_morph,
-                        "loss_total": loss
-                    }, iteration)
-
-                # now perform f1 evaluation
-                rate = CONSTS["train_tree_rate"] if training else CONSTS["dev_tree_rate"]
-                if random.random() <= rate: # only generate trees for this batch (100 * rate) % of the time
-                    best_edges, labels_best_edges, poses_best_edges, attachment_orders_best_edges, morphs_best_edges, (edges, joint_logits) = model._find_tree(sentence_lengths, self_attention, labels, poses, attachment_orders, *morphs, indices=indices)
-
-                    for s_num in range(batch_size):
-                        try:
-                            tree_words = words[s_num, :sentence_lengths[s_num]].cpu()
-
-                            tree_heads = best_edges[s_num, :sentence_lengths[s_num]].cpu()
-                            tree_syms = labels_best_edges[s_num, :sentence_lengths[s_num]].cpu()
-                            tree_poses = poses_best_edges[s_num, :sentence_lengths[s_num]].cpu()
-                            tree_attachment_orders = attachment_orders_best_edges[s_num, :sentence_lengths[s_num]].cpu()
-                            tree_morphs = [m[s_num, :sentence_lengths[s_num]].cpu() for m in morphs_best_edges]
-
-                            t_tree_heads = target_heads[s_num, :sentence_lengths[s_num]].cpu()
-                            t_tree_syms = target_syms[s_num, :sentence_lengths[s_num]].cpu()
-                            t_tree_poses = target_poses[s_num, :sentence_lengths[s_num]].cpu()
-                            t_tree_attachment_orders = target_attachment_orders[s_num, :sentence_lengths[s_num]].cpu()
-                            t_tree_morphs = [m[s_num, :sentence_lengths[s_num]].cpu() for m in target_morphs]
-
-                            the_sentence = [inverse_word_dict[w.item()] if w > 0 else new_words_dict[-w.item()] for w in tree_words]
-
-                            # TODO: keep morphs as dictionary instead of tuple
-                            c_tree = ConstituentTree.from_collection(heads=tree_heads, syms=[inverse_sym_dict[l.item()] for l in tree_syms], poses=[inverse_pos_dict[p.item()] for p in tree_poses], orders=tree_attachment_orders, words=the_sentence, morphs={
-                                prop: [inverse_morph_dicts[prop][m.item()] for m in tree_morphs[morph_i]]
-                                for morph_i, prop in enumerate(CONSTS["morph_props"])
-                            })
-                            t_c_tree = ConstituentTree.from_collection(heads=t_tree_heads, syms=[inverse_sym_dict[l.item()] for l in t_tree_syms], poses=[inverse_pos_dict[p.item()] for p in tree_poses], orders=t_tree_attachment_orders, words=the_sentence, morphs={
-                                prop: [inverse_morph_dicts[prop][m.item()] for m in tree_morphs[morph_i]]
-                                for morph_i, prop in enumerate(CONSTS["morph_props"])
-                            })
-
-                            brackets.append(c_tree.get_bracket(zero_indexed=True, ignore_words=True, pos_replacements=CONSTS["pos_replacements"]))
-                            brackets_structure.append(c_tree.get_bracket(ignore_all_syms=True, zero_indexed=True, ignore_words=True))
-
-                            t_brackets.append(t_c_tree.get_bracket(zero_indexed=True, ignore_words=True, pos_replacements=CONSTS["pos_replacements"]))
-                            t_brackets_structure.append(t_c_tree.get_bracket(ignore_all_syms=True, zero_indexed=True, ignore_words=True))
-                            
-                        except Exception as e:
-                            pass
-
-        # calculate epoch-level metrics
-        epoch_attention_loss /= epoch_length
-        epoch_label_loss     /= epoch_length
-        epoch_pos_loss       /= epoch_length
-        epoch_order_loss     /= epoch_length
-        epoch_morph_loss     /= epoch_length
-        epoch_total_loss     /= epoch_length
-
-        summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_losses", {
-            "attention": epoch_attention_loss,
-            "label": epoch_label_loss,
-            "pos": epoch_pos_loss,
-            "order": epoch_order_loss,
-            "morph": epoch_morph_loss,
-            "total": epoch_total_loss
-        }, i + 1)
-
-        brackets_filename = f"{CONSTS['eval_dir']}/{get_filename(i)}.txt"
-        brackets_gold_filename = f"{CONSTS['eval_dir']}/{get_filename(i)}_gold.txt"
-        brackets_structure_filename = f"{CONSTS['eval_dir']}/{get_filename(i)}_structure.txt"
-        brackets_structure_gold_filename = f"{CONSTS['eval_dir']}/{get_filename(i)}_gold_structure.txt"
-
-        open(brackets_filename, "w").write("\n".join(brackets))
-        open(brackets_gold_filename, "w").write("\n".join(t_brackets))
-
-        open(brackets_structure_filename, "w").write("\n".join(brackets_structure))
-        open(brackets_structure_gold_filename, "w").write("\n".join(t_brackets_structure))
-
-        if brackets:
-            brackets_res = subprocess.run(["discodop",
-                                           "eval",
-                                           brackets_gold_filename,
-                                           brackets_filename,
-                                           "--fmt=discbracket",
-                                           CONSTS["discodop_config_file"]
-                                           ],
-                                        capture_output=True,
-                                        text=True).stdout
-            brackets_structure_res = subprocess.run(["discodop",
-                                                     "eval",
-                                                     brackets_structure_gold_filename,
-                                                     brackets_structure_filename,
-                                                     "--fmt=discbracket",
-                                                     CONSTS["discodop_config_file"]
-                                                     ],
-                                                capture_output=True,
-                                                text=True).stdout
-            disc_brackets_res = subprocess.run(["discodop",
-                                           "eval",
-                                           brackets_gold_filename,
-                                           brackets_filename,
-                                           "--fmt=discbracket",
-                                           "--disconly",
-                                           CONSTS["discodop_config_file"]
-                                           ],
-                                        capture_output=True,
-                                        text=True).stdout
-            disc_brackets_structure_res = subprocess.run(["discodop",
-                                                     "eval",
-                                                     brackets_structure_gold_filename,
-                                                     brackets_structure_filename,
-                                                     "--fmt=discbracket",
-                                                     "--disconly",
-                                                     CONSTS["discodop_config_file"]
-                                                     ],
-                                                capture_output=True,
-                                                text=True).stdout
-
-            summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_f1", {
-                label: float(re.search(r".*labeled f-measure.*?([\d.]|nan)+.*?([\d.]+|nan)", res).groups()[1])
-                for (label, res) in [
-                    ("full", brackets_res),
-                    ("structure", brackets_structure_res),
-                    ("full_disc", disc_brackets_res),
-                    ("structure_disc", disc_brackets_structure_res)
-                ]}, i + 1)
+        one_epoch(
+            model=model,
+            optim=optim,
+            device=DEVICE_NAME,
+            dataloader=train_dataloader if training else dev_dataloader,
+            training=training,
+            new_words_dict=train_new_words if training else dev_new_words,
+            inverse_word_dict=inverse_word_dict,
+            inverse_sym_dict=inverse_sym_dict,
+            inverse_pos_dict=inverse_pos_dict,
+            inverse_morph_dicts=inverse_morph_dicts,
+            discodop_config_file=CONSTS["discodop_config_file"],
+            epoch_num=i,
+            eval_dir=CONSTS["eval_dir"],
+            gradient_clipping=1,
+            morph_props=CONSTS["morph_props"],
+            pos_replacements=CONSTS["pos_replacements"],
+            scheduler=scheduler,
+            summary_writer=summary_writer,
+            tree_gen_rate=CONSTS["train_tree_rate"] if training else CONSTS["dev_tree_rate"]
+        )
             
     # update the learning rate
     scheduler.step()

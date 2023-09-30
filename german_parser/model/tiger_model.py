@@ -214,7 +214,7 @@ class TigerModel(nn.Module):
         """forward
 
         Args:
-            input (tuple[torch.Tensor, ...]): tuple of (data, tokens, sentence_lengths, token_transformations), where data is a tensor of size (B, T) and sentence_lengths is a tensor of size (B,). B is batch size, T is max(sentence_length) across all batches. The input must be sorted in descending order of sentence length
+            input (tuple[torch.Tensor, ...]): tuple of (word_ids, bert_tokens, sentence_lengths, token_transformations), where data is a tensor of size (B, T) and sentence_lengths is a tensor of size (B,). B is batch size, T is max(sentence_length) across all batches. The input must be sorted in descending order of sentence length
             new_words_dict (dict[int, str] | None): dictionary of new words. positive indices in new_words_dict correspond to negative indices in input[0] (data). If None, then all unknown words must be coded as 0
 
         Returns:
@@ -333,12 +333,11 @@ class TigerModel(nn.Module):
         return indices
         
 
-    def find_tree(self, input: tuple[torch.Tensor, torch.Tensor], new_words_dict: dict[int, str] | None):
-        """input (tuple[torch.Tensor, torch.Tensor]): tuple of (data, sentence_lengths), where data is a tensor of size (B, T) and sentence_lengths is a tensor of size (B,). B is batch size, T is max(sentence_length) across all batches. The input must be sorted in descending order of sentence length
-            new_words_dict (dict[int, str] | None): dictionary of new words. positive indices in new_words_dict correspond to negative indices in input[0] (data). If None, then all unknown words must be coded as 0
+    def find_tree(self, input: tuple[torch.Tensor, ...], new_words_dict: dict[int, str] | None):
+        """Generate most probable tree via beam search
 
         Args:
-            input (tuple[torch.Tensor, torch.Tensor]): words, lengths
+            input (tuple[torch.Tensor, ...]): words, bert tokens, lengths
             new_words_dict (dict[int, str] | None): _description_
         """    
 

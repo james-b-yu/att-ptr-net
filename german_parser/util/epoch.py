@@ -20,13 +20,7 @@ import re
 
 from torch.utils.tensorboard import SummaryWriter
 
-# if training is None:
-#     # save the model
-#     filename = f"{CONSTS['model_dir']}/{get_filename(i)}.pickle"
-#     pickle.dump(model, open(filename, "wb"))
-#     continue
-
-def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.device, epoch_num: int, dataloader: DataLoader[TigerDataset], training: bool, new_words_dict: dict[int, str], inverse_word_dict: dict[int, str], inverse_sym_dict: dict[int, str], inverse_pos_dict: dict[int, str], inverse_morph_dicts: dict[str, dict[int, str]], tree_gen_rate: float, morph_props: tuple[str], discodop_config_file: str, eval_dir, gradient_clipping=1, scheduler: torch.optim.lr_scheduler.LRScheduler|None=None, summary_writer: SummaryWriter|None=None, pos_replacements: dict[str, str]={}):
+def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.device | str, epoch_num: int, dataloader: DataLoader[TigerDataset], new_words_dict: dict[int, str], inverse_word_dict: dict[int, str], inverse_sym_dict: dict[int, str], inverse_pos_dict: dict[int, str], inverse_morph_dicts: dict[str, dict[int, str]], tree_gen_rate: float, morph_props: tuple[str], discodop_config_file: str, eval_dir, gradient_clipping=1, scheduler: torch.optim.lr_scheduler.LRScheduler|None=None, summary_writer: SummaryWriter|None=None, pos_replacements: dict[str, str]={}, training=False):
     total_sentences = len(dataloader.dataset) #type:ignore
 
     sum_sentences = 0
@@ -152,8 +146,8 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
                             prop: [inverse_morph_dicts[prop][int(m.item())] for m in tree_morphs[morph_i]]
                             for morph_i, prop in enumerate(morph_props)
                         })
-                        t_c_tree = ConstituentTree.from_collection(heads=t_tree_heads, syms=[inverse_sym_dict[int(l.item())] for l in t_tree_syms], poses=[inverse_pos_dict[int(p.item())] for p in tree_poses], orders=t_tree_attachment_orders, words=the_sentence, morphs={
-                            prop: [inverse_morph_dicts[prop][int(m.item())] for m in tree_morphs[morph_i]]
+                        t_c_tree = ConstituentTree.from_collection(heads=t_tree_heads, syms=[inverse_sym_dict[int(l.item())] for l in t_tree_syms], poses=[inverse_pos_dict[int(p.item())] for p in t_tree_poses], orders=t_tree_attachment_orders, words=the_sentence, morphs={
+                            prop: [inverse_morph_dicts[prop][int(m.item())] for m in t_tree_morphs[morph_i]]
                             for morph_i, prop in enumerate(morph_props)
                         })
 
