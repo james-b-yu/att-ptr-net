@@ -21,6 +21,8 @@ import re
 from torch.utils.tensorboard import SummaryWriter
 
 def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.device | str, epoch_num: int, dataloader: DataLoader[TigerDataset], new_words_dict: dict[int, str], inverse_word_dict: dict[int, str], inverse_sym_dict: dict[int, str], inverse_pos_dict: dict[int, str], inverse_morph_dicts: dict[str, dict[int, str]], tree_gen_rate: float, discodop_config_file: str, eval_dir, gradient_clipping=1, scheduler: torch.optim.lr_scheduler.LRScheduler|None=None, summary_writer: SummaryWriter|None=None, pos_replacements: dict[str, str]={}, training=False):
+    poses_one_shot_helper = torch.eye(model.num_terminal_poses, device=device)
+
     total_sentences = len(dataloader.dataset) #type:ignore
 
     sum_sentences = 0
@@ -65,10 +67,21 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
 
         self_attention, labels, poses, attachment_orders, morphs, indices = model((words, tokens, sentence_lengths, token_transformations), new_words_dict)
 
-        loss_attention = F.cross_entropy(self_attention[indices], target_heads[indices])
-        loss_labels    = F.cross_entropy(labels[indices, target_heads[indices]], target_syms[indices])
-        loss_poses     = F.cross_entropy(poses[indices, target_heads[indices]], target_poses[indices])
-        loss_orders    = F.cross_entropy(attachment_orders[indices, target_heads[indices]], target_attachment_orders[indices])
+        # calculate loss metrics
+        target_poses_indexed = target_poses[indices]
+        target_syms_indexed = target_syms[indices]
+        target_heads_indexed = target_heads[indices]
+        target_attachment_orders_indexed = target_attachment_orders[indices]
+
+        poses_logits = poses[indices, target_heads_indexed] # NOTE: we are using teacher-forcing here
+        labels_logits = labels[indices, target_heads_indexed]
+        attachment_orders_logits = attachment_orders[indices, target_heads_indexed]
+        self_attention_logits = self_attention[indices]
+
+        loss_attention = F.cross_entropy(self_attention_logits, target_heads_indexed)
+        loss_labels    = F.cross_entropy(labels_logits, target_syms_indexed)
+        loss_poses     = F.cross_entropy(poses_logits, target_poses_indexed)
+        loss_orders    = F.cross_entropy(attachment_orders_logits, target_attachment_orders_indexed)
 
         loss_morph = torch.zeros(1, device=device, requires_grad=True)
 
@@ -80,6 +93,12 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
 
 
         loss = (loss_attention + loss_labels + loss_poses + loss_orders + loss_morph)
+
+        # calculate f1 metrics
+        pred_poses = poses_logits.argmax(dim=-1)
+        pred_poses_one_shot = poses_one_shot_helper[pred_poses]
+        target_poses_one_shot = poses_one_shot_helper[target_poses_indexed]
+        pred_poses_confusion_matrix = torch.einsum("bi,bj->ij", target_poses_one_shot, pred_poses_one_shot) # m[i, j] = number of examples for which the true pos is i and was classed as j
 
         # perform backpropagation
         if training:

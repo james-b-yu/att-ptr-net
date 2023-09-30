@@ -37,6 +37,11 @@ class TigerModel(nn.Module):
     def __init__(self, bert_model: BertLMHeadModel, bert_embedding_dim: int, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, enc_pos_mlp_dim: int, dec_pos_mlp_dim: int, enc_morph_mlp_dim: int, dec_morph_mlp_dim: int, max_attachment_order: int, num_constituent_labels: int, num_terminal_poses: int, morph_prop_classes: dict[str, int], morph_pos_interaction_dim: int, num_biaffine_attention_classes=2, beam_size=10):
         super().__init__()
 
+        self.num_biaffine_attention_classes = num_biaffine_attention_classes
+        self.num_constituent_labels = num_constituent_labels
+        self.max_attachment_order = max_attachment_order
+        self.num_terminal_poses = num_terminal_poses
+
         # save the bert model
         self.bert_model = bert_model
         self.bert_embedding_dim = bert_embedding_dim
@@ -134,7 +139,7 @@ class TigerModel(nn.Module):
 
         # define biaffine layer for attention
         self.biaffine_attention = BiAffine(
-            num_classes=num_biaffine_attention_classes,
+            num_classes=self.num_biaffine_attention_classes,
             enc_input_size=self.enc_attention_mlp_dim,
             dec_input_size=self.dec_attention_mlp_dim,
             include_attention=True
@@ -142,7 +147,7 @@ class TigerModel(nn.Module):
 
         # define biaffine layer for classification of constituent labels
         self.biaffine_constituent_classifier = BiAffine(
-            num_classes=num_constituent_labels,
+            num_classes=self.num_constituent_labels,
             enc_input_size=self.enc_label_mlp_dim,
             dec_input_size=self.dec_label_mlp_dim,
             include_attention=False
@@ -150,7 +155,7 @@ class TigerModel(nn.Module):
 
         # define biaffine layer for classification of attachment orders
         self.biaffine_attachment_classifier = BiAffine(
-            num_classes=max_attachment_order,
+            num_classes=self.max_attachment_order,
             enc_input_size=self.enc_attachment_mlp_dim,
             dec_input_size=self.dec_attachment_mlp_dim,
             include_attention=False
@@ -158,7 +163,7 @@ class TigerModel(nn.Module):
 
         # define biaffine layer for classification of terminal parts-of-speech
         self.biaffine_terminal_classifier = BiAffine(
-            num_classes=num_terminal_poses,
+            num_classes=self.num_terminal_poses,
             enc_input_size=self.enc_pos_mlp_dim,
             dec_input_size=self.dec_pos_mlp_dim,
             include_attention=False
