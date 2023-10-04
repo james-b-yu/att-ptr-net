@@ -8,6 +8,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, default_collate
 
+from german_parser.util.util import get_str_before_underscore
+
 from .logger import model_logger
 from .c_and_d import ConstituentTree, DependencyTree
 from .const import CONSTS
@@ -382,12 +384,14 @@ class TigerDatasetGenerator:
         for idx, s in enumerate(all_sentences):
             s_cannot_use = False
 
+            s_id = int(get_str_before_underscore(s.find("graph").attrib["root"])[1:])
+
             try:
                 sent = ConstituentTree.from_tiger_xml(s)
                 has_unary += int(sent.has_unary)
                 has_empty_verb_constituents += int(sent.has_empty_verb_constituents)
 
-                s_cannot_use = sent.has_unary or sent.has_empty_verb_constituents or sent.get_num_words() < 2
+                s_cannot_use = sent.get_num_words() < 2 # sent.has_unary # or sent.has_empty_verb_constituents # or sent.get_num_words() < 2
 
                 # check for three elipses in a row
                 if any([".", ".", "."] == list(x) for x in zip(*[sent.get_words()[i:] for i in range(3)])):
@@ -400,7 +404,7 @@ class TigerDatasetGenerator:
                     self.sentences.append(sent)
             except Exception as e:
                 errors += 1
-                error_messages.append(f"sentence id {idx + 1} has error {e}")
+                error_messages.append(f"sentence id {s_id} has error {e}")
 
                 s_cannot_use = True
 
@@ -425,6 +429,7 @@ class TigerDatasetGenerator:
         self._set_morph_dicts()
 
         self.character_flag_generators = character_flag_generators
+        self.error_messages = error_messages
 
     def _get_dataset(self, dataset: list[ConstituentTree], use_new_words: bool=True) -> TigerDataset:
         return TigerDataset(

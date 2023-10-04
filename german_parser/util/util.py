@@ -12,6 +12,9 @@ def str_to_newick_str(text: str) -> str:
 def get_str_after_underscore(text: str):
     return text.split("_")[1]
 
+def get_str_before_underscore(text: str):
+    return text.split("_")[0]
+
 def get_int_after_underscore(text: str, default: int | None = None) -> int | None:
     res = None
     try:

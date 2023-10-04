@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import torch
 
 from .const import CONSTS
-from .util import get_int_after_underscore, get_str_after_underscore, is_pairwise_disjoint, str_to_newick_str
+from .util import get_int_after_underscore, get_str_after_underscore, get_str_before_underscore, is_pairwise_disjoint, str_to_newick_str
 from .logger import model_logger
 
 
@@ -86,6 +86,8 @@ class ConstituentTree(BaseModel):
     has_empty_verb_constituents: bool
     has_unary: bool
 
+    id: None | int = Field(default=None)
+
     @classmethod
     def _integize(cls):
         num_integers = 1048576
@@ -161,12 +163,14 @@ class ConstituentTree(BaseModel):
         return None
 
     @classmethod
-    def from_tiger_xml(cls, tree_element: ET.Element):
+    def from_tiger_xml(cls, tree_element: ET.Element, make_empty_verbs=False, auto_fix_vroot_head_failure=True):
         # find elements in xml tree
         tree_graph = tree_element.find("graph")
         tree_graph_root_name = get_str_after_underscore(tree_graph.attrib["root"])
         tree_terminals = tree_graph.find("terminals")
         tree_nonterminals = tree_graph.find("nonterminals")
+
+        tiger_id = int(get_str_before_underscore(tree_graph.attrib["root"])[1:])
 
         is_discontinuous = ("discontinuous" in tree_graph.attrib) and (tree_graph.attrib["discontinuous"] == "true") # PROP
 
@@ -254,13 +258,31 @@ class ConstituentTree(BaseModel):
 
                 # reattach VP or S
                 if c.head is None and c.sym in CONSTS["verb_phrase_reattach_symbols"]:
-                    c.head = next(empty_constituent_generator)
-                    assert constituents[c.head].is_empty
-                    has_empty_verb_constituents = True
+                    if make_empty_verbs:
+                        c.head = next(empty_constituent_generator)
+                        assert constituents[c.head].is_empty
+                        has_empty_verb_constituents = True
+                    else:
+                        if len(c.children) == 1:
+                            c.head = constituents[c.children[0]].head
+                        else:
+                            # TODO: better heuristic.
+                            c.head = constituents[c.children[0]].head
+                            # raise Exception("Cannot find head with empty verb disabled!")
             else: # vroots have special treatment: copy the head from the unique non-terminal child
                 head_candidates = [constituents[cld].head for cld in c.children if not constituents[cld].is_pre_terminal]
-                assert len(head_candidates) == 1, "vroot must have exactly one non-terminal child"
-                c.head = head_candidates[0]
+                if len(head_candidates) == 1: # normal and most common case:
+                    c.head = head_candidates[0]
+                else: # in case
+                    # TODO: issue warning!!, or add option to raise error if we enter here
+                    if auto_fix_vroot_head_failure:
+                        if len(head_candidates) > 1:
+                            # if more than one 
+                            c.head = head_candidates[0]
+                        else:
+                            c.head = constituents[c.children[0]].head
+                    else:
+                        raise Exception("not valid number of candidates for vroot!")
 
         # check to see if unary or not
         has_unary = False # PROP
@@ -274,7 +296,8 @@ class ConstituentTree(BaseModel):
             root=root,
             is_discontinuous=is_discontinuous,
             has_empty_verb_constituents=has_empty_verb_constituents,
-            has_unary=has_unary
+            has_unary=has_unary,
+            id=tiger_id
         )
         res._check_constituent_rules()
 
@@ -292,7 +315,7 @@ class ConstituentTree(BaseModel):
             assert (self.constituents[id].id == id), f"Expected id in dict '{id}' to match id of constituent '{self.constituents[id].id}'"
 
             if self.constituents[id].is_pre_terminal:
-                assert len(self.constituents[id].children) == 1, f"Pre-terminal constituent '{id}' must have exactly one child"
+                assert self.constituents[id].is_empty or (len(self.constituents[id].children) == 1), f"Pre-terminal constituent '{id}' must have exactly one child"
                 assert self.constituents[id].children[0] == id, f"Pre-terminal constituent '{id}' must have itself as a child"
 
         # check to see if constituent rules are satisfied
