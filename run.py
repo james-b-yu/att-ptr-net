@@ -28,6 +28,7 @@ from math import ceil, floor
 from torch.utils.tensorboard import SummaryWriter
 
 DEVICE_NAME = "cuda"
+DTYPE = torch.half
 
 (train_dataloader, train_new_words), (dev_dataloader, dev_new_words), _, character_set, character_flag_generators, inverse_word_dict, inverse_sym_dict, inverse_pos_dict, inverse_morph_dicts = pickle.load(open("required_vars.pkl", "rb"))
 
@@ -88,7 +89,7 @@ model = TigerModel(
     dec_attachment_mlp_dim=64,
     max_attachment_order=max(train_dataloader.dataset.attachment_orders.max(), dev_dataloader.dataset.attachment_orders.max()) + 1
     )
-model = model.to(device=DEVICE_NAME, dtype=torch.half) # type: ignore
+model = model.to(device=DEVICE_NAME, dtype=DTYPE) # type: ignore
 
 print(f"Model has {sum([p.numel() for p in model.parameters()]):_} parameters".replace("_", " "))
 

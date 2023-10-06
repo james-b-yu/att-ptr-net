@@ -2,6 +2,8 @@ from torch.utils.data import DataLoader
 from time import time
 import torch
 import torch.nn.functional as F
+from torcheval.metrics import functional as EF
+from collections import defaultdict
 
 
 from . import TigerDataset
@@ -29,12 +31,15 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
     epoch_length = len(dataloader)
     epoch_start_time = time()
 
-    epoch_attention_loss = 0
-    epoch_label_loss = 0
-    epoch_pos_loss = 0
-    epoch_order_loss = 0
-    epoch_morph_loss = 0
-    epoch_total_loss = 0
+    epoch_attention_loss = 0.0
+    epoch_label_loss = 0.0
+    epoch_pos_loss = 0.0
+    epoch_order_loss = 0.0
+    epoch_morph_loss = 0.0
+    epoch_total_loss = 0.0
+
+    epoch_poses_f1 = 0.0
+    epoch_morphs_f1: dict[str, float] = defaultdict(lambda: 0.0)
 
     brackets = []
     brackets_structure = []
@@ -68,6 +73,7 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
         self_attention, labels, poses, attachment_orders, morphs, indices = model((words, tokens, sentence_lengths, token_transformations), new_words_dict)
 
         # calculate loss metrics
+        ## TODO: option to turn on or off teacher-forcing, viz., indexing via target_heads and target_poses
         target_poses_indexed = target_poses[indices]
         target_syms_indexed = target_syms[indices]
         target_heads_indexed = target_heads[indices]
@@ -85,24 +91,50 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
 
         loss_morph = torch.zeros(1, device=device, requires_grad=True)
 
-        for m in target_morphs.keys():
+
+        morphs_logits: dict[str, torch.Tensor] = {}
+        target_morphs_indexed: dict[str, torch.Tensor] = {}
+
+        for m in target_morphs:
             morph_pred_flattened = morphs[m][indices, target_heads[indices], target_poses[indices]]
             morph_target_flattened = target_morphs[m][indices]
+
+            morphs_logits[m] = morph_pred_flattened
+            target_morphs_indexed[m] = morph_target_flattened
 
             loss_morph = loss_morph + F.cross_entropy(morph_pred_flattened, morph_target_flattened)
 
 
         loss = (loss_attention + loss_labels + loss_poses + loss_orders + loss_morph)
 
-        # calculate f1 metrics
+        ## CALCULATE F1 METRICS
+        ### parts of speech
         pred_poses = poses_logits.argmax(dim=-1)
-        pred_poses_one_shot = poses_one_shot_helper[pred_poses]
-        target_poses_one_shot = poses_one_shot_helper[target_poses_indexed]
-        pred_poses_confusion_matrix = torch.einsum("bi,bj->ij", target_poses_one_shot, pred_poses_one_shot) # m[i, j] = number of examples for which the true pos is i and was classed as j
+        # pred_poses_one_shot = poses_one_shot_helper[pred_poses]
+        # target_poses_one_shot = poses_one_shot_helper[target_poses_indexed]
+        # pred_poses_confusion_matrix = torch.einsum("bi,bj->ij", target_poses_one_shot, pred_poses_one_shot) # m[i, j] = number of examples for which the true pos is i and was classed as j
+        poses_f1_score = float(EF.multiclass_f1_score(
+            input=pred_poses,
+            target=target_poses_indexed,
+            num_classes=model.num_terminal_poses
+        ).item())
+
+        ### morphology
+        morphs_f1_scores: dict[str, float] = {}
+        for m in target_morphs:
+            pred_morphs = morphs_logits[m].argmax(dim=-1)
+            target_morphs_indexed_m = target_morphs_indexed[m]
+            morphs_f1_score_m = EF.multiclass_f1_score(
+                input=pred_morphs,
+                target=target_morphs_indexed_m,
+                num_classes=model.morph_prop_classes[m]
+            )
+            morphs_f1_scores[m] = float(morphs_f1_score_m.item())
+            
 
         # perform backpropagation
         if training and not loss.isnan():
-            loss.backward()
+            # loss.backward()
             nn_utils.clip_grad_norm_(model.parameters(), max_norm=gradient_clipping)
             optim.step()
             optim.zero_grad(set_to_none=True)
@@ -127,6 +159,10 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
             epoch_order_loss += loss_orders.item()
             epoch_morph_loss += loss_morph.item()
             epoch_total_loss += loss.item()
+
+            epoch_poses_f1 += poses_f1_score
+            for m, f1_score in morphs_f1_scores.items():
+                epoch_morphs_f1[m] += f1_score
 
             progress = sum_sentences / total_sentences
             eta_seconds = round((time() - epoch_start_time) * (1 - progress) / progress)
@@ -190,6 +226,10 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
     epoch_morph_loss     /= epoch_length
     epoch_total_loss     /= epoch_length
 
+    epoch_poses_f1 /= epoch_length
+    for m in epoch_morphs_f1:
+        epoch_morphs_f1[m] /= epoch_length
+
     if summary_writer is not None:
         summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_losses", {
             "attention": epoch_attention_loss,
@@ -198,6 +238,13 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
             "order": epoch_order_loss,
             "morph": epoch_morph_loss,
             "total": epoch_total_loss
+        }, epoch_num + 1)
+
+        summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_morphs_f1", {
+            "pos": epoch_poses_f1,
+            **{
+                m: f1_score for m, f1_score in epoch_morphs_f1.items()
+            }
         }, epoch_num + 1)
 
     brackets_filename = f"{eval_dir}/{get_filename(epoch_num)}.txt"
