@@ -1,5 +1,6 @@
 *.prof
 
+draft/
 eval/
 *.pkl
 *.pickle

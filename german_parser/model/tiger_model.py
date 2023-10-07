@@ -34,9 +34,10 @@ class TigerModel(nn.Module):
         num_layers: int = Field(default=1)
         dropout: float = Field(default=0.2)
 
-    def __init__(self, bert_model: BertLMHeadModel, bert_embedding_dim: int, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, enc_pos_mlp_dim: int, dec_pos_mlp_dim: int, enc_morph_mlp_dim: int, dec_morph_mlp_dim: int, max_attachment_order: int, num_constituent_labels: int, num_terminal_poses: int, morph_prop_classes: dict[str, int], morph_pos_interaction_dim: int, num_biaffine_attention_classes=2, beam_size=10):
+    def __init__(self, bert_model: BertLMHeadModel, bert_embedding_dim: int, word_embedding_params: WordEmbeddingParams, enc_lstm_params: LSTMParams, dec_lstm_params: LSTMParams, enc_attention_mlp_dim: int, dec_attention_mlp_dim: int, enc_label_mlp_dim: int, dec_label_mlp_dim: int, enc_attachment_mlp_dim: int, dec_attachment_mlp_dim: int, enc_pos_mlp_dim: int, dec_pos_mlp_dim: int, enc_morph_mlp_dim: int, dec_morph_mlp_dim: int, max_attachment_order: int, num_constituent_labels: int, num_terminal_poses: int, morph_prop_classes: dict[str, int], num_biaffine_attention_classes=2, beam_size=10, biaffine_use_self_scores=False):
         super().__init__()
 
+        self.biaffine_use_self_scores = biaffine_use_self_scores
         self.num_biaffine_attention_classes = num_biaffine_attention_classes
         self.num_constituent_labels = num_constituent_labels
         self.max_attachment_order = max_attachment_order
@@ -133,16 +134,13 @@ class TigerModel(nn.Module):
             prop: nn.Linear(self.dec_lstm_params.hidden_size, self.dec_morph_mlp_dim) for prop in self.morph_prop_classes
         })
 
-        # define morphology part-of-speech interaction parameter
-        self.morph_pos_interaction_dim = morph_pos_interaction_dim
-        self.morph_pos_interactor = nn.Parameter(torch.zeros(1, num_terminal_poses, self.morph_pos_interaction_dim))
-
         # define biaffine layer for attention
         self.biaffine_attention = BiAffine(
             num_classes=self.num_biaffine_attention_classes,
             enc_input_size=self.enc_attention_mlp_dim,
             dec_input_size=self.dec_attention_mlp_dim,
-            include_attention=True
+            include_attention=True,
+            use_self_scores=self.biaffine_use_self_scores
         )
 
         # define biaffine layer for classification of constituent labels
@@ -150,7 +148,8 @@ class TigerModel(nn.Module):
             num_classes=self.num_constituent_labels,
             enc_input_size=self.enc_label_mlp_dim,
             dec_input_size=self.dec_label_mlp_dim,
-            include_attention=False
+            include_attention=False,
+            use_self_scores=self.biaffine_use_self_scores
         )
 
         # define biaffine layer for classification of attachment orders
@@ -158,7 +157,8 @@ class TigerModel(nn.Module):
             num_classes=self.max_attachment_order,
             enc_input_size=self.enc_attachment_mlp_dim,
             dec_input_size=self.dec_attachment_mlp_dim,
-            include_attention=False
+            include_attention=False,
+            use_self_scores=self.biaffine_use_self_scores
         )
 
         # define biaffine layer for classification of terminal parts-of-speech
@@ -166,13 +166,20 @@ class TigerModel(nn.Module):
             num_classes=self.num_terminal_poses,
             enc_input_size=self.enc_pos_mlp_dim,
             dec_input_size=self.dec_pos_mlp_dim,
-            include_attention=False
+            include_attention=False,
+            use_self_scores=self.biaffine_use_self_scores
         )
 
         # TODO: experiment with a 4-affine layer
         # define 3-affine layer for morphologies
         self.affine_morph_classifiers = nn.ModuleDict({
-            key: MAffine(n, self.dec_morph_mlp_dim, self.enc_morph_mlp_dim, self.morph_pos_interaction_dim)
+            key: BiAffine(
+                num_classes=[self.num_terminal_poses, n],
+                enc_input_size=self.enc_morph_mlp_dim,
+                dec_input_size=self.dec_morph_mlp_dim,
+                include_attention=False,
+                use_self_scores=self.biaffine_use_self_scores
+            )
             for key, n in self.morph_prop_classes.items()
         })
 
@@ -295,7 +302,7 @@ class TigerModel(nn.Module):
         for prop in self.morph_prop_classes:
             enc_out_morph = F.elu(self.enc_morph_mlps[prop](enc_out_pad))
             dec_out_morph = F.elu(self.dec_morph_mlps[prop](dec_out_pad))
-            morph = self.affine_morph_classifiers[prop](dec_out_morph, enc_out_morph, self.morph_pos_interactor.expand(B, -1, -1), num_batch_dims=1)
+            morph = self.affine_morph_classifiers[prop](enc_out_morph, dec_out_morph)
             self._mask_out_(morph, lengths)
             morphs[prop] = morph
             pass

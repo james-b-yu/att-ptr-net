@@ -11,7 +11,7 @@ import dill as pickle
 
 from german_parser.model import TigerModel
 import torch.nn.utils.clip_grad as utils
-from german_parser.util import get_progress_bar, get_filename
+from german_parser.util import get_filename, print_module_parameters
 from german_parser.util.epoch import one_epoch
 from german_parser.util.const import CONSTS
 from german_parser.util.c_and_d import ConstituentTree, DependencyTree
@@ -77,7 +77,6 @@ model = TigerModel(
     enc_morph_mlp_dim=128,
     dec_morph_mlp_dim=128,
 
-    morph_pos_interaction_dim=128,
     morph_prop_classes={prop: len(imd) for prop, imd in inverse_morph_dicts.items()},
 
     num_biaffine_attention_classes=3,
@@ -87,11 +86,13 @@ model = TigerModel(
 
     enc_attachment_mlp_dim=128,
     dec_attachment_mlp_dim=64,
-    max_attachment_order=max(train_dataloader.dataset.attachment_orders.max(), dev_dataloader.dataset.attachment_orders.max()) + 1
+    max_attachment_order=max(train_dataloader.dataset.attachment_orders.max(), dev_dataloader.dataset.attachment_orders.max()) + 1,
+
+    biaffine_use_self_scores=True
     )
 model = model.to(device=DEVICE_NAME, dtype=DTYPE) # type: ignore
 
-print(f"Model has {sum([p.numel() for p in model.parameters()]):_} parameters".replace("_", " "))
+print_module_parameters(model)
 
 optim = torch.optim.SGD(model.parameters(), lr=5e-2, weight_decay=1e-4, momentum=0.9, nesterov=True) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=4, gamma=0.9, last_epoch=-1)

@@ -1,28 +1,38 @@
+from typing import Sequence
 import torch
 import torch.nn as nn
 
 from functools import reduce
 
 class BiAffine(nn.Module):
-    def __init__(self, num_classes: int, enc_input_size: int, dec_input_size: int, include_attention=False, check_accuracy: bool=False):
+    def __init__(self, num_classes: int | Sequence[int], enc_input_size: int, dec_input_size: int, include_attention=False, check_accuracy: bool=False, use_self_scores=False):
         super().__init__()
 
-        self.num_classes = num_classes
+        self.num_classes = num_classes if isinstance(num_classes, Sequence) else (num_classes, )
         self.enc_input_size = enc_input_size
         self.dec_input_size = dec_input_size
+        self.use_self_scores = use_self_scores
 
-        self.Z = nn.Parameter(torch.zeros(self.num_classes, self.dec_input_size, self.enc_input_size), requires_grad=True)
-        self.b = nn.Parameter(torch.zeros(self.num_classes), requires_grad=True)
-        self.U_enc = nn.Parameter(torch.zeros(self.num_classes, self.enc_input_size), requires_grad=True)
-        self.U_dec = nn.Parameter(torch.zeros(self.num_classes, self.dec_input_size), requires_grad=True)
+        if self.use_self_scores:
+            self.V_enc = nn.Parameter(torch.zeros(*self.num_classes, self.enc_input_size, self.enc_input_size), requires_grad=True)
+            self.V_dec = nn.Parameter(torch.zeros(*self.num_classes, self.dec_input_size, self.dec_input_size), requires_grad=True)
+
+        self.Z = nn.Parameter(torch.zeros(*self.num_classes, self.dec_input_size, self.enc_input_size), requires_grad=True)
+        self.b = nn.Parameter(torch.zeros(*self.num_classes), requires_grad=True)
+        self.U_enc = nn.Parameter(torch.zeros(*self.num_classes, self.enc_input_size), requires_grad=True)
+        self.U_dec = nn.Parameter(torch.zeros(*self.num_classes, self.dec_input_size), requires_grad=True)
+
+        if len(self.num_classes) > 1 and include_attention:
+            assert "cannot do attention when multiple dimensions of output classes"
 
         self.include_attention = include_attention
         self.w = None
         if self.include_attention:
-            self.w = nn.Parameter(torch.zeros(self.num_classes), requires_grad=True)
+            self.w = nn.Parameter(torch.zeros(*self.num_classes), requires_grad=True)
 
         self.check_accuracy = check_accuracy
         self._reset_parameters()
+        self.class_indexers = "nmop"[:len(self.num_classes)]
 
     def forward(self, enc: torch.Tensor, dec: torch.Tensor):
         """calculate biaffine score between enc and dec
@@ -33,9 +43,20 @@ class BiAffine(nn.Module):
         """
 
         # BEGIN EINSUM METHOD
-        interaction_score = torch.einsum("nij,bsj,bti->btsn", self.Z, enc, dec) # (B, T, T + 1, num_classes)
-        enc_score         = torch.einsum("nj,bsj->bsn", self.U_enc, enc)        # (B, T + 1, num_classes)
-        dec_score         = torch.einsum("ni,bti->btn", self.U_dec, dec)        # (B, T, num_classes)
+
+        enc_self_score = None
+        dec_self_score = None
+
+        if self.use_self_scores:
+            enc_self_score    = torch.einsum(f"{self.class_indexers}ij,bsi,bsj->bs{self.class_indexers}", self.V_enc, enc, enc) # (B, T + 1, num_classes)
+            dec_self_score    = torch.einsum(f"{self.class_indexers}ij,bti,btj->bt{self.class_indexers}", self.V_dec, dec, dec) # (B, T, num_classes)
+
+            enc_self_score = enc_self_score.unsqueeze(1)
+            dec_self_score = dec_self_score.unsqueeze(2)
+
+        interaction_score = torch.einsum(f"{self.class_indexers}ij,bsj,bti->bts{self.class_indexers}", self.Z, enc, dec) # (B, T, T + 1, num_classes)
+        enc_score         = torch.einsum(f"{self.class_indexers}j,bsj->bs{self.class_indexers}", self.U_enc, enc)        # (B, T + 1, num_classes)
+        dec_score         = torch.einsum(f"{self.class_indexers}i,bti->bt{self.class_indexers}", self.U_dec, dec)        # (B, T, num_classes)
 
         enc_score = enc_score.unsqueeze(1) # (B, 1, T + 1, num_classes)
         dec_score = dec_score.unsqueeze(2) # (B, T, 1,     num_classes)
@@ -44,6 +65,9 @@ class BiAffine(nn.Module):
         # END EINSUM METHOD
 
         res = interaction_score + enc_score + dec_score + bias # (B, T, T + 1, num_classes)
+        
+        if self.use_self_scores:
+            res = res + enc_self_score + dec_self_score
 
         if self.include_attention:
             res = self.w @ res.tanh().transpose(-1, -2) # (B, T, T + 1)
@@ -55,6 +79,10 @@ class BiAffine(nn.Module):
         nn.init.xavier_uniform_(self.U_enc)
         nn.init.xavier_uniform_(self.U_dec)
         nn.init.xavier_uniform_(self.Z)
+
+        if self.use_self_scores:
+            nn.init.xavier_uniform_(self.V_enc)
+            nn.init.xavier_uniform_(self.V_dec)
 
 
 class MLinear(nn.Module):

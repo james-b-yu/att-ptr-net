@@ -2,6 +2,8 @@ import re
 
 from math import floor, ceil
 from time import strftime
+from torch.nn import Module
+from prettytable import PrettyTable
 
 def str_to_newick_str(text: str) -> str:
     quote = "'"
@@ -44,3 +46,21 @@ def get_filename(epoch: int):
     """
 
     return f"{filename_prefix}_epoch_{epoch + 1}"
+
+def print_module_parameters(module: Module):
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+
+    for name, parameter in module.named_parameters():
+        if not parameter.requires_grad:
+            continue
+
+        params = parameter.numel()
+        table.add_row([name, f"{params:_}".replace("_", " ")])
+
+        total_params += params
+
+    print(table)
+    print(f"Total trainable params: {f'{total_params:_}'.replace('_', ' ')}")
+
+    return total_params
