@@ -9,3 +9,9 @@
 1. skip connects
 1. add morph metrics to tensorboard!
 1. make sure to escape special tokens when running inference
+
+
+1. NOTES:
+   - when including unitaries without extra handling, converting to dependency trees will lead to only the lowest (or highest: need to check) constituency in that chain being kept
+   - when disabling empty verb, we are using the first child as the head for the costituent
+   - unaries are unable to be recovered. but they are particularly uncommon in german

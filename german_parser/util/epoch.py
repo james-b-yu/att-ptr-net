@@ -113,11 +113,15 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
         # pred_poses_one_shot = poses_one_shot_helper[pred_poses]
         # target_poses_one_shot = poses_one_shot_helper[target_poses_indexed]
         # pred_poses_confusion_matrix = torch.einsum("bi,bj->ij", target_poses_one_shot, pred_poses_one_shot) # m[i, j] = number of examples for which the true pos is i and was classed as j
+        
         poses_f1_score = float(EF.multiclass_f1_score(
             input=pred_poses,
             target=target_poses_indexed,
             num_classes=model.num_terminal_poses
         ).item())
+
+        del pred_poses
+        del target_poses_indexed
 
         ### morphology
         morphs_f1_scores: dict[str, float] = {}
@@ -130,11 +134,14 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
                 num_classes=model.morph_prop_classes[m]
             )
             morphs_f1_scores[m] = float(morphs_f1_score_m.item())
+            del pred_morphs
+            del target_morphs_indexed_m
             
+        torch.cuda.empty_cache()
 
         # perform backpropagation
         if training and not loss.isnan():
-            # loss.backward()
+            loss.backward()
             nn_utils.clip_grad_norm_(model.parameters(), max_norm=gradient_clipping)
             optim.step()
             optim.zero_grad(set_to_none=True)

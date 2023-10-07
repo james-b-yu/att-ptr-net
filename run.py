@@ -80,7 +80,7 @@ model = TigerModel(
     morph_pos_interaction_dim=128,
     morph_prop_classes={prop: len(imd) for prop, imd in inverse_morph_dicts.items()},
 
-    num_biaffine_attention_classes=2,
+    num_biaffine_attention_classes=3,
 
     num_constituent_labels=len(inverse_sym_dict),
     num_terminal_poses=len(inverse_pos_dict),
@@ -96,7 +96,7 @@ print(f"Model has {sum([p.numel() for p in model.parameters()]):_} parameters".r
 optim = torch.optim.SGD(model.parameters(), lr=5e-2, weight_decay=1e-4, momentum=0.9, nesterov=True) #, betas=(0.9, 0.9)) # Dozat and Manning (2017) suggest that beta2 of 0.999 means model does not sufficiently adapt to new changes in moving average of gradient norm
 scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=4, gamma=0.9, last_epoch=-1)
 
-num_epochs = 15
+num_epochs = 50
 
 train_total_sentences = len(train_dataloader.dataset)
 dev_total_sentences = len(dev_dataloader.dataset)
