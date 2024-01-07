@@ -1,0 +1,114 @@
+---
+bibliography: "bib.bib"
+...
+
+
+# BiAffine
+Let \(N = \qty{1, \ldots, \abs{N}}\) be an index set. We will abuse notation so \(N\) denotes both the set and the number of elements.
+
+Input a sentence \(w = (w_{i})_{i\in N}\) where each \(w_{i}\) is a word. (detail: bert works with tokens; where words have been split into multiple tokens, we have taken the average of the token-level embeddings; detail: UNK only happens at the word level)
+
+*Note*: no POS-information
+
+Define a sequence of embeddings \(\omega = (\omega_{i})_{i\in N}\) where:
+\[
+    \omega_{i} \coloneqq \text{word\_embed}(w_{i}) \oplus \text{char\_embed}(w_{i}) \oplus \text{bert\_embed}(w_{i}), \qquad \text{(this is column-vector-valued)}
+\]
+where \(\text{bert\_embed}(w_{i})\) is the vector-valued BERT embedding representation for word \(w_{i}\) and \(\text{char\_embed}\) a vector-valued embedding obtained from a convolution of character-level embeddings *á la* [@chiu2016named].
+
+**Encoder**: feed the embeddings through a multi-layer bi-directional LSTM with skip-connections:
+\[
+    \vb{e} = \qty(\vb{e}_{i})_{i = 0, 1, \ldots, N}\coloneqq \mathbf{BiLSTM}(\omega) \qquad \text{(each \(\vb{e}_{i}\)) is a column vector}
+\]
+(\(\vb{e}_{0}\) is a concatenation of the initial state of forward-LSTM and final state of backward-LSTM)
+
+**Decoder**: feed the encodings into a single-layer single-directional LSTM:
+\[
+    \vb{d} = \qty(\vb{d}_{i})_{i = 1, \ldots, N} \coloneqq \mathbf{LSTM}(e) \qquad \text{(each \(\vb{d}_{i}\)) is a column vector}
+\]
+
+*Note*: unlike [@fernandez2022multitask], we do not use separate decoders for each task
+
+### Pointer Layer/BiAffine Attention
+Feed each sequence \(e, d\) into a linear layer to produce sequences of dimension-reduced vectors:
+\[
+    \vb{e}^{\text{at}} \coloneqq \mathbf{MLP}^{\text{at}}_{\mathrm{enc}}(\vb{e}); \qquad \vb{d}^{\text{at}} \coloneqq \mathbf{MLP}^{\text{at}}_{\mathrm{dec}}(\vb{d}). 
+\]
+(use einstein summation at this stage)
+
+(encoder: parent, decoder: child)
+
+From now, \(\vb{e}_{i}, i = 0, \ldots, N\) denotes a potential parent at position \(i\) and \(\vb{d}_{j}, j = 1, \ldots, N\) denotes a potential child at position \(j\). \(i = 0\) represents no parent;
+
+\[
+    \vb{v}^{\mathrm{arc}}_{i,j} &\coloneqq \vb{e}_{i}^{T}\mathbf{U}_{\mathrm{head\_dep}}^{\text{arc}} \vb{d}_{i}
+                          + {
+                            \color{purple} \vb{e}_{i}^{T}\mathbf{U}_{\mathrm{head\_head}}^{\text{arc}} \vb{e}_{i}
+                            + \vb{d}_{i}^{T}\mathbf{U}_{\mathrm{dep\_dep}}^{\text{arc}} \vb{d}_{i}
+                            }
+                          + U^{\mathrm{arc}}_{\mathrm{head}} \vb{e}_{i}
+                          + U^{\mathrm{arc}}_{\mathrm{dep}} \vb{d}_{i}
+                          + \vb{u}^{\mathrm{arc}}_{\mathrm{bias}} \qquad \text{(is a column vector)} \\
+    s^{\mathrm{arc}}_{i,j} &\coloneqq \vb{u}_{\text{agg}}^{T} \mathrm{tanh}(\vb{v}^{\mathrm{arc}}_{i,j})
+\]
+Fixing child \(j\), the vector \(\mathrm{softmax}(\vb{s}_{:, j})\) represents an estimated probability distribution over potential parents.
+
+Thus:
+\[
+    \boxed{\hat{p}^{\mathrm{arc}}(w_{i} \mid y_{<j}, w) = s^{\mathrm{arc}}_{i,j}.}
+\]
+
+### Bi-affine Layer for Prediction of POS and Morphology
+We continue to use bi-affine layers for classification of part-of-speech and morphology. This allows us to model the probability of a given class *conditional* on arcs. This has the advantage of allowing us to use structural cues in addition to encoder/decoder states to better capture the complexity of language.
+
+For example, suppose we want to classify the POS of word \(w_{j}\) which could take on values \(m \in \mathcal{M}\). For each potential parent \(i\):
+\[
+    \vb{v}^{\mathrm{pos}}_{i,j} &\coloneqq \vb{e}_{i}^{T}\mathbf{U}_{\mathrm{head\_dep}}^{\text{pos}} \vb{d}_{i}
+                          + {
+                            \color{purple} \vb{e}_{i}^{T}\mathbf{U}_{\mathrm{head\_head}}^{\text{pos}} \vb{e}_{i}
+                            + \vb{d}_{i}^{T}\mathbf{U}_{\mathrm{dep\_dep}}^{\text{pos}} \vb{d}_{i}
+                            }
+                          + U^{\mathrm{pos}}_{\mathrm{head}} \vb{e}_{i}
+                          + U^{\mathrm{pos}}_{\mathrm{dep}} \vb{d}_{i}
+                          + \vb{u}^{\mathrm{pos}}_{\mathrm{bias}} \qquad \text{(is a column vector)} \\
+    \hat{p}^{\text{pos}}(c \mid w_{i}; y_{<j}, w) &\coloneqq \mathrm{softmax}(\vb{v}_{i,j}^{\mathrm{pos}})_{m}.
+\]
+
+Define \(\hat{p}^{\mathrm{morph}}\) and \(\hat{p}^{\mathrm{attach}}\) similarly.
+
+Formally \(y_{j} = \qty(y_{j}^{w}, y_{j}^{o}, y_{j}^{p}, y_{j}^{m})\) contains arc, attachment order, POS and morphology information for word \(w_{j}\). The tree can be fully represented by the sequence \(y\).
+\[
+    y = \qty(y_{j})_{j=1\ldots, N}; \qquad y_{<j} = \begin{cases}
+        \qty(y_{k})_{k = 1, \ldots, i - 1}, &\qif j > 1;\\
+        (), &\qif j = 1.
+    \end{cases}
+\]
+
+Assumption.
+: For each \(j = 1, \ldots, N\), conditional on sentence \(w\), partial tree \(y_{<j}\), and head word, \(y_{j}^{w}\) the random variables \(y_{j}^{o}, y_{j}^{p}, y_{j}^{m}\) are mutually independent.
+
+Given a sequence of words \(w\), we can estimate the probability of a tree \(y\) via conditional decomposition:
+\[
+    \hat{p}(y \mid w) &= \prod_{j = 1}^{N} \hat{p}(y_{i} \mid y_{<i}, w)  \\
+    &= \prod_{j=1}^{N} \hat{p}^{\mathrm{arc}}(y_{j}^{w} \mid y_{<j}, w) \hat{p}^{\mathrm{att}}(y_{j}^{o} \mid y_{j}^{w}, y_{<j}, w) \hat{p}^{\mathrm{pos}}(y_{j}^{p} \mid y_{j}^{w}, y_{<j}, w) \hat{p}^{\mathrm{morph}}(y_{j}^{m} \mid y_{j}^{w}, y_{<j}, w)
+\]
+
+
+### Inference
+Given sentence \(w\), the estimated dependency tree \(y\) is that which maximises the estimated conditional probability, or minimises negative log probability:
+\[
+    \hat{y} = \mathop{\underset{y}{\mathrm{argmax}}} \prod_{j=1}^{N} \hat{p}^{\mathrm{arc}}(y_{j}^{w} \mid y_{<j}, w) \hat{p}^{\mathrm{att}}(y_{j}^{o} \mid y_{j}^{w}, y_{<j}, w) \hat{p}^{\mathrm{pos}}(y_{j}^{p} \mid y_{j}^{w}, y_{<j}, w) \hat{p}^{\mathrm{morph}}(y_{j}^{m} \mid y_{j}^{w}, y_{<j}, w)
+\]
+
+### Training + Regularisation
+Regularisation:
+1. dropout
+1. multitask learning
+1. weight decay (not L2 regularisation! L2 can perform suboptimally with momentum)
+
+Training schedule:
+1. 80/10/10 data split
+1. SGD with nesterov momentum 
+1. stepwise exponential learning rate schedule
+
+Quirk: evaluation f1 scores continue to rise despite loss rising.

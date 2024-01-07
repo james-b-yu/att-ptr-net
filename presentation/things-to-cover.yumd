@@ -1,0 +1,29 @@
+1. definitions (constituency tree, dependency tree, discontinuous)
+2. existing solutions
+3. architecture: show what is new
+   1. embeddings (word + character-level + "modifiers") (modifiers are new)
+   2. encoder + decoder
+   3. biaffine -- conditional probability
+      1. attachment scores
+      2. order scores
+      3. morphology
+   4. batch beam search algorithm (fast)
+4. results
+problems with probabilistic parsers
+review problems I encountered and how I solved them
+
+review uses for this
+
+regularisation techniques
+review the multitask paper
+
+
+things to do:
+1. get results
+2. learn markov chains
+3. revise deep learning book
+4. learn first 10 chapters of info theory
+5. revise word2vec and sent2vec
+6. revise how transformers and lstms work
+7. revise tree-based methods
+8. bias-variance tradeoff

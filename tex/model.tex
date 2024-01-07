@@ -1,0 +1,138 @@
+
+\documentclass{report}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern} % must be loaded with fontenc --- otherwise text will become bitmaps
+\usepackage[british]{babel}
+\usepackage{csquotes} % will automatically use quotes of the babel language
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{etoolbox}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{color}
+\usepackage[normalem]{ulem}
+\usepackage[style=apa]{biblatex} % verbose or apa depending on cite style
+\usepackage{xcolor}
+\usepackage[
+    colorlinks,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+]{hyperref}
+\usepackage[capitalize]{cleveref} % use capitalization so that we do not need to worry about detecting beginnings of sentences, etc
+\usepackage{import}
+\usepackage[useregional]{datetime2}
+\usepackage{titlesec}
+\usepackage{physics}
+\usepackage{float} % for H option in table
+\usepackage{parskip} % remove indentation on new paragraphs
+\usepackage{caption}
+\usepackage[export]{adjustbox} % allow max width
+\usepackage{graphbox} % allow align=t in \includegraphics to make them work better in minipages if first item
+
+\MakeOuterQuote{"}
+
+\titleformat{\chapter}[display]{}{}{0pt}{\raggedright\normalfont\bfseries\huge\thechapter\hspace*{1em}}[] % for chapters created from metadata blocks
+\titleformat{name=\chapter,numberless}[display]{}{}{0pt}{\raggedright\normalfont\bfseries\huge\phantom{\thechapter}\hspace*{1em}}[] % for unnumbered chapters, including the table of contents
+\titlespacing{\chapter}{0pt}{2em}{1em}
+
+\lstset{
+	backgroundcolor=\color[rgb]{1,1,1},
+	tabsize=4,
+	rulecolor=,
+	basicstyle=\ttfamily,
+	upquote=true,
+	aboveskip={1.5\baselineskip},
+	columns=fixed,
+	showstringspaces=false,
+	extendedchars=true,
+	breaklines=true,
+	prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+	showtabs=false,
+	showspaces=false,
+	showstringspaces=false,
+	identifierstyle=\ttfamily,
+	keywordstyle=\color[rgb]{0,0,1},
+	commentstyle=\color[rgb]{0.133,0.545,0.133},
+	stringstyle=\color[rgb]{0.627,0.126,0.941},
+	aboveskip=0pt,
+	literate={£}{{\textsterling{}}}1 % allow £ sign within listings
+}
+
+\newcommand{\noncolouredtableofcontents}{
+	\begingroup
+	\hypersetup{hidelinks}
+	\tableofcontents
+	\endgroup
+}
+
+\ifcsundef{thematicbreak}{\newcommand{\thematicbreak}{\par\bigskip\noindent\hrulefill\par\bigskip}}{}
+
+\theoremstyle{definition}
+\ifcsundef{definition}{\newtheorem{definition}{Definition}[section]}{}
+
+\theoremstyle{plain}
+\ifcsundef{theorem}{\newtheorem{theorem}{Theorem}[section]}{}
+\ifcsundef{lemma}{\newtheorem{lemma}[theorem]{Lemma}}{}
+\ifcsundef{corollary}{\newtheorem{corollary}{Corollary}[theorem]}{}
+
+\theoremstyle{definition}
+\ifcsundef{definition}{\newtheorem{definition}{Definition}[section]}{}
+\ifcsundef{example}{\newtheorem{example}{Example}[section]}{}
+
+\theoremstyle{remark}
+\ifcsundef{assumption}{\newtheorem*{assumption}{Assumption}}{}
+\ifcsundef{proof}{\newtheorem*{proof}{Proof}}{}
+\ifcsundef{exercise}{\newtheorem{exercise}{Exercise}[section]}{}
+\ifcsundef{problem}{\newtheorem{problem}{Problem}[section]}{}
+\ifcsundef{question}{\newtheorem{question}{Question}[section]}{}
+\ifcsundef{tip}{\newtheorem*{tip}{Tip}}{}
+\ifcsundef{solution}{\newtheorem*{solution}{Solution}}{}
+\ifcsundef{note}{\newtheorem{note}{Note}[section]}{}
+\ifcsundef{derivation}{\newtheorem{derivation}{Derivation}[section]}{}
+\ifcsundef{axiom}{\newtheorem{axiom}{Axiom}[section]}{}
+\ifcsundef{conjecture}{\newtheorem{conjecture}{Conjecture}[section]}{}
+\ifcsundef{hypothesis}{\newtheorem{hypothesis}{Hypothesis}[section]}{}
+\ifcsundef{proposition}{\newtheorem{proposition}{Proposition}[section]}{}
+
+\ifcsundef{remark}{\newtheorem*{remark}{Remark}}{} % notes are numbered but remarks are not
+
+\renewcommand{\qedsymbol}{$\blacksquare$} % closed black square for proof environments
+
+\renewcommand\thesection{\arabic{section}}
+
+\numberwithin{equation}{section}
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+  
+% fix parskip within minipage
+\setlength{\parskip}{\medskipamount}
+\makeatletter
+\newcommand{\@minipagerestore}{\setlength{\parskip}{\medskipamount}}
+\makeatother
+
+
+\begin{document}
+
+\setcounter{secnumdepth}{3}
+
+\section{BiAffine}
+
+Let \(N = \qty{1, \ldots, \abs{N}}\) be an index set. We will abuse notation so \(N\) denotes both the set and the number of elements.
+
+Input a sentence \(w= (w_{i})_{i\in N}\) where each \(w_{i}\) is a word. (detail: bert works with tokens; where words have been split into multiple tokens, we have taken the average of the token-{}level embeddings; detail: UNK only happens at the word level)
+
+Define a sequence of embeddings \(e = (e_{i})_{i\in N}\) where: 
+\begin{align}
+e_{i} = \text{word\_embed}(w_{i}) \oplus \text{char\_embed}(w_{i}) \oplus \text{bert\_embed}(w_{i}),
+\end{align} where \(\text{bert\_embed}(w_{i})\) is the BERT embedding representation for word \(w_{i}\) and \(\text{char\_embed}\) is an embedding obtained from a convolution of character-{}level embeddings \emph{á la} \textcite[{}][{}]{chiu2016named}.
+
+
+\end{document}
