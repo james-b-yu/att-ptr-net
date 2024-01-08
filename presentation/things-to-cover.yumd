@@ -27,3 +27,4 @@ things to do:
 6. revise how transformers and lstms work
 7. revise tree-based methods
 8. bias-variance tradeoff
+9. copy the algorithms in "parsing as reduction" into the appendix
