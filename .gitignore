@@ -1,5 +1,7 @@
 *.prof
 
+scrap/DiscoPointer/
+scrap/DiscoPointer
 draft/
 eval/
 *.pkl
