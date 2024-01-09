@@ -28,3 +28,13 @@ things to do:
 7. revise tree-based methods
 8. bias-variance tradeoff
 9. copy the algorithms in "parsing as reduction" into the appendix
+1. overview of compsci ways to parse
+1. understand what the f1 score means
+1. find out about the continuous consittuency parsing for english
+1. give words to the "latent factors"
+
+all the mlps have nonlinearities!202ß
+
+skip-gram with nega- tive sampling model  (word2vec)
+
+make a slide justifying why your method now spans the entire **biaffine space**

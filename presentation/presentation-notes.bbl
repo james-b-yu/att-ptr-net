@@ -111,38 +111,6 @@
       \field{pages}{357\bibrangedash 370}
       \range{pages}{14}
     \endentry
-    \entry{dozat2016deep}{article}{}
-      \name{author}{2}{}{%
-        {{un=0,uniquepart=base,hash=d1d28f03da75cca98fac1800aec56dbb}{%
-           family={Dozat},
-           familyi={D\bibinitperiod},
-           given={Timothy},
-           giveni={T\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=2214edb8305f7ccd7cdc310b3a8ae1b4}{%
-           family={Manning},
-           familyi={M\bibinitperiod},
-           given={Christopher\bibnamedelima D},
-           giveni={C\bibinitperiod\bibinitdelim D\bibinitperiod},
-           givenun=0}}%
-      }
-      \strng{namehash}{f6067aedf665eea71726e7d1913c5a3c}
-      \strng{fullhash}{f6067aedf665eea71726e7d1913c5a3c}
-      \strng{bibnamehash}{f6067aedf665eea71726e7d1913c5a3c}
-      \strng{authorbibnamehash}{f6067aedf665eea71726e7d1913c5a3c}
-      \strng{authornamehash}{f6067aedf665eea71726e7d1913c5a3c}
-      \strng{authorfullhash}{f6067aedf665eea71726e7d1913c5a3c}
-      \field{sortinit}{D}
-      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{year}
-      \true{uniqueprimaryauthor}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{International Conference on Learning Representations}
-      \field{title}{Deep Biaffine Attention for Neural Dependency Parsing}
-      \field{year}{2016}
-    \endentry
     \entry{fernandez2015parsing}{article}{}
       \name{author}{2}{}{%
         {{un=0,uniquepart=base,hash=1034c9c0a75375015adeb2d99a01a7aa}{%
@@ -176,45 +144,6 @@
       \field{year}{2015}
       \field{pages}{1523\bibrangedash 1533}
       \range{pages}{11}
-    \endentry
-    \entry{vinyals2015pointer}{article}{}
-      \name{author}{3}{}{%
-        {{un=0,uniquepart=base,hash=494b568c5dc85ba8f3f409635f9c5f25}{%
-           family={Vinyals},
-           familyi={V\bibinitperiod},
-           given={Oriol},
-           giveni={O\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=dfc7f8069848dbc66435c3acc3172871}{%
-           family={Fortunato},
-           familyi={F\bibinitperiod},
-           given={Meire},
-           giveni={M\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=5a9f30e0c0441d2aea255916ff375e8c}{%
-           family={Jaitly},
-           familyi={J\bibinitperiod},
-           given={Navdeep},
-           giveni={N\bibinitperiod},
-           givenun=0}}%
-      }
-      \strng{namehash}{832d19b6ecbaa1d465342fe676ffb29a}
-      \strng{fullhash}{a442a9bbb26362f27b11afa1b7ac9582}
-      \strng{bibnamehash}{a442a9bbb26362f27b11afa1b7ac9582}
-      \strng{authorbibnamehash}{a442a9bbb26362f27b11afa1b7ac9582}
-      \strng{authornamehash}{832d19b6ecbaa1d465342fe676ffb29a}
-      \strng{authorfullhash}{a442a9bbb26362f27b11afa1b7ac9582}
-      \field{sortinit}{V}
-      \field{sortinithash}{afb52128e5b4dc4b843768c0113d673b}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{year}
-      \true{uniqueprimaryauthor}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{Advances in neural information processing systems}
-      \field{title}{Pointer networks}
-      \field{volume}{28}
-      \field{year}{2015}
     \endentry
   \enddatalist
 \endrefsection

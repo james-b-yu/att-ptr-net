@@ -44,10 +44,10 @@
   <internal package="biblatex" priority="9" active="0">
     <generic>latex</generic>
     <provides type="dynamic">
-      <file>presentation.bcf</file>
+      <file>presentation-notes.bcf</file>
     </provides>
     <requires type="dynamic">
-      <file>presentation.bbl</file>
+      <file>presentation-notes.bbl</file>
     </requires>
     <requires type="static">
       <file>blx-dm.def</file>
@@ -70,19 +70,19 @@
     <generic>biber</generic>
     <cmdline>
       <binary>biber</binary>
-      <infile>presentation</infile>
+      <infile>presentation-notes</infile>
     </cmdline>
     <input>
-      <file>presentation.bcf</file>
+      <file>presentation-notes.bcf</file>
     </input>
     <output>
-      <file>presentation.bbl</file>
+      <file>presentation-notes.bbl</file>
     </output>
     <provides type="dynamic">
-      <file>presentation.bbl</file>
+      <file>presentation-notes.bbl</file>
     </provides>
     <requires type="dynamic">
-      <file>presentation.bcf</file>
+      <file>presentation-notes.bcf</file>
     </requires>
     <requires type="editable">
       <file>bib.bib</file>

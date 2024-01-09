@@ -1,0 +1,17 @@
+Application 1: open domain information extraction (extracting structured data from unstructured data, e.g. relational triples (subject, relation, object))
+
+**Angeli et al (2015)** use a d-parser to find clauses. It then applies natural logic to validate deletions and produce subclauses useful for downstream applications.
+
+Natural logic as a formalism captures common logical inferences appealing directly to the form of language, rather than parsing to a spe- cialized logical syntax. E.g. "all" induces downward polarity; "some" induces upward polarity. "All rabbits eat vegetables"
+
+Application 2: embeddings
+
+Levy and Goldbertg (2014) find that dependency-based embeddings can better capture semantic and synctactic similarities between words.
+
+
+## Dozat and Manning
+MLPs are applied to recurrent states has the benefit of stripping away information not relevant to the current task (the top level must include information necessary to perform all tasks; keeping it in slows down the network and risks overfitting)
+
+Biaffine: prior probability, *likelihood* of label given just word i (how probable a word is to take a particular label), likelihood of a label given just parent (how probable a word is to take dependents with a particular label), and likelihood of a label given both word and its parent (how probable a word is to take a particular label given parent)
+
+Problem: higher power so must also increase regularisation. Need more dropout in recurrent and MLP layers and input. Dropout 33%.

@@ -1,6 +1,6 @@
 
-\documentclass{report}
-\usepackage[margin=0.5in]{geometry}
+\documentclass[8pt]{beamer}
+
 \usepackage[T1]{fontenc}
 \usepackage{lmodern} % must be loaded with fontenc --- otherwise text will become bitmaps
 \usepackage[british]{babel}
@@ -17,16 +17,9 @@
 \usepackage[normalem]{ulem}
 \usepackage[style=apa]{biblatex} % verbose or apa depending on cite style
 \usepackage{xcolor}
-\usepackage[
-    colorlinks,
-    linkcolor=blue,
-    citecolor=blue,
-    urlcolor=blue
-]{hyperref}
 \usepackage[capitalize]{cleveref} % use capitalization so that we do not need to worry about detecting beginnings of sentences, etc
 \usepackage{import}
 \usepackage[useregional]{datetime2}
-\usepackage{titlesec}
 \usepackage{physics}
 \usepackage{float} % for H option in table
 \usepackage{parskip} % remove indentation on new paragraphs
@@ -35,10 +28,6 @@
 \usepackage{graphbox} % allow align=t in \includegraphics to make them work better in minipages if first item
 
 \MakeOuterQuote{"}
-
-\titleformat{\chapter}[display]{}{}{0pt}{\raggedright\normalfont\bfseries\huge\thechapter\hspace*{1em}}[] % for chapters created from metadata blocks
-\titleformat{name=\chapter,numberless}[display]{}{}{0pt}{\raggedright\normalfont\bfseries\huge\phantom{\thechapter}\hspace*{1em}}[] % for unnumbered chapters, including the table of contents
-\titlespacing{\chapter}{0pt}{2em}{1em}
 
 \lstset{
 	backgroundcolor=\color[rgb]{1,1,1},
@@ -128,55 +117,83 @@
 \usepackage[tikz]{ocgx2}
 \usetikzlibrary{tikzmark, fit, calc, positioning,arrows.meta}
 
+\bibliography{bib.bib}
+
+
+\usetheme{Rochester}
+\usefonttheme{structureitalicserif}
+
+% \usefonttheme{serif}
+
+% remove indent from itemize
+\settowidth{\leftmargini}{\usebeamertemplate{itemize item}}
+\addtolength{\leftmargini}{\labelsep}
+
+\setbeamersize{text margin left=2em,text margin right=2em} 
+
+% \setbeamerfont{title}{series=\bfseries,parent=structure}
+% \setbeamerfont{frametitle}{series=\bfseries,parent=structure}
+
+\date[15/01/24]{15th January 2024}
+\title[Discontinuous Constituent Parsing]{Multitask Pointer Network for Discontinuous Constituent Parsing}
+\subtitle[An application to German]{An application to the German language}
+\author[J. Yu]{James Yu \newline \href{mailto:jby21@cam.ac.uk}{\texttt{jby21@cam.ac.uk}}}
+\institute[Cambridge]{Faculty of Economics \\ University of Cambridge}
+
+
 \begin{document}
 
-\setcounter{secnumdepth}{3}
+\begin{frame}
+    \titlepage
+\end{frame}
 
-\section{Preliminaries: Constituency Trees}
+\section{Introduction}
+\subsection{Motivation}
+\begin{frame}
+    \frametitle{Why use a neural network to model grammar?}
+\end{frame}
 
-\begin{figure}
-    \centering
-    \begin{tikzpicture}[remember picture]
-        \node (w) at (0,0) {\subnode[inner sep=2pt]{wd1}{Darüber} \subnode[inner sep=2.5pt]{wd2}{muss} \subnode[inner sep=1.5pt]{wd3}{nachgedacht} \subnode[inner sep=1.5pt]{wd4}{werden} \subnode[inner sep=2.5pt]{wd5}{.}};
+\subsection{Preliminaries}
+\begin{frame}
+    \frametitle{Linguistic preliminaries: constituent trees}
+    Let \(w = \qty(w_{1}, \ldots, w_{N})\) be a sentence.
 
-        % muss
-        \draw[-Stealth] ($(wd2.north) + (2pt, 0)$) to [bend left=50] node [above, scale=0.5] {\(\mathrm{C}_{1}\)} ($(wd4.north) + (2pt, 0)$);
-        \draw[-Stealth] ($(wd2.north) + (2pt, 0)$) to [bend left=80] node [above, scale=0.5] (s2) {\(\mathrm{S}_{2}\)} (wd5.north);
+    \begin{definition}
+        \begin{itemize}
+            \item A \textit{constituent tree} is a rooted tree whose leaves are the words \(\qty(w_{i})_{i=1}^{N}\) and internal nodes are constituents satisfying some constraints.
 
-        % werden
-        \draw[-Stealth] ($(wd4.north) - (2pt, 0)$) to [bend right=30] node [above, scale=0.5] {VP} ($(wd3.north) + (2pt, 0)$);
+            \item A \textit{constituent} is a triple \(\qty(\tikzmarknode{const-label}{Z}, \tikzmarknode{const-yield}{\mathcal{Y}}, \tikzmarknode{const-head}{h})\) containing, respectively, its label, yield, and lexical head.
+            
+            \item A constituent is \tikzmarknode{disc-text}{\textit{discontinuous}} if its yield is not contiguous.
+        \end{itemize}
+    \end{definition}
 
-        % nachgedacht
-        \draw[-Stealth] ($(wd3.north) - (2pt, 0)$) to [bend right=60] node [above, scale=0.5] {VP} (wd1.north);
-
-        \node[scale=0.5] (root) at ({$(wd2) - (2pt, 0)$} |- s2) {\texttt{root}};
-        \draw[-Stealth] (root.south) -- (root |- wd2.north);
-    \end{tikzpicture}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \begin{tikzpicture}[remember picture]
-        \node[inner sep=0, text depth=0] (w) {\subnode[inner sep=0]{s-yld}{\subnode[inner sep=0]{c-yld}{\subnode[inner sep=0]{vptop-left}{\subnode[inner sep=0]{vpbot-left}{\subnode[inner sep=2pt]{w1}{Darüber}}} \subnode[inner sep=2.5pt]{w2}{muss} \subnode[inner sep=0]{vptop-right}{\subnode[inner sep=0]{vpbot-right}{\subnode[inner sep=1.5pt]{w3}{nachgedacht}} \subnode[inner sep=1.5pt]{w4}{werden}}} \subnode[inner sep=2.5pt]{w5}{.}}};
-    
-        \foreach \n/\english in {1/about this,2/must,3/considered,4/be,5/.} \node[below=1ex of {w\n |- w.south}, inner sep=0, align=center] {\(w_{\n}\) \\[0ex] \scalebox{0.8}{\textit{\english}}};
+    \begin{figure}
+        \centering
+        \begin{tikzpicture}[remember picture]
+            \node[inner sep=0, text depth=0] (w) {\subnode[inner sep=0]{s-yld}{\subnode[inner sep=0]{c-yld}{\subnode[inner sep=0]{vptop-left}{\subnode[inner sep=0]{vpbot-left}{\subnode[inner sep=2pt]{w1}{Darüber}}} \subnode[inner sep=2.5pt]{w2}{muss} \subnode[inner sep=0]{vptop-right}{\subnode[inner sep=0]{vpbot-right}{\subnode[inner sep=1.5pt]{w3}{nachgedacht}} \subnode[inner sep=1.5pt]{w4}{werden}}} \subnode[inner sep=2.5pt]{w5}{.}}};
         
-        % \coordinate (s) at ({barycentric cs:w1=1,w2=1,w3=1,w4=1} |- {barycentric cs:w=1,vroot=4});
+            \foreach \n/\english in {1/about this,2/must,3/considered,4/be,5/.} \node[below=1ex of {w\n |- w.south}, inner sep=0, align=center] {\(w_{\n}\) \\[0ex] \scalebox{0.8}{\textit{\english}}};
+            
+            % \coordinate (s) at ({barycentric cs:w1=1,w2=1,w3=1,w4=1} |- {barycentric cs:w=1,vroot=4});
+            
+            \node[switch ocg=const-s] (vroot) at ($(w) + (0, 3cm)$)  {S};
+            \node[switch ocg=const-c] (s) at ({barycentric cs:w1=1,w2=3,w3=1,w4=1} |- {barycentric cs:w=1,vroot=3}) {C};
+            \node[switch ocg=const-vptop] (vp1) at ({barycentric cs:w1=1,w3=1,w4=1} |- {barycentric cs:w=2,vroot=2}) {VP};
+            \node[switch ocg=const-vpbot] (vp2) at ({barycentric cs:w1=1,w3=3} |- {barycentric cs:w=3,vroot=1}) {VP};
         
-        \node[switch ocg=const-s] (vroot) at ($(w) + (0, 4cm)$)  {S};
-        \node[switch ocg=const-c] (s) at ({barycentric cs:w1=1,w2=3,w3=1,w4=1} |- {barycentric cs:w=1,vroot=3}) {C};
-        \node[switch ocg=const-vptop] (vp1) at ({barycentric cs:w1=1,w3=1,w4=1} |- {barycentric cs:w=2,vroot=2}) {VP};
-        \node[switch ocg=const-vpbot] (vp2) at ({barycentric cs:w1=1,w3=3} |- {barycentric cs:w=3,vroot=1}) {VP};
+            \draw[very thin] (vroot.south) -- (w5.north);
+            \draw[ultra thick] (vroot.south) -- (s.north);
+            \draw[ultra thick] (s.south) -- (w2.north);
+            \draw[very thin] (s.south) -- (vp1.north);
+            \draw[ultra thick] (vp1.south) -- (w4.north);
+            \draw[very thin] (vp1.south) -- (vp2.north);
+            \draw[very thin] (vp2.south) -- (w1.north);
+            \draw[ultra thick] (vp2.south) -- (w3.north);
+        \end{tikzpicture}
+    \end{figure}
     
-        \draw[very thin] (vroot.south) -- (w5.north);
-        \draw[ultra thick] (vroot.south) -- (s.north);
-        \draw[ultra thick] (s.south) -- (w2.north);
-        \draw[very thin] (s.south) -- (vp1.north);
-        \draw[ultra thick] (vp1.south) -- (w4.north);
-        \draw[very thin] (vp1.south) -- (vp2.north);
-        \draw[very thin] (vp2.south) -- (w1.north);
-        \draw[ultra thick] (vp2.south) -- (w3.north);
-    
+    \begin{tikzpicture}[remember picture, overlay]
         % vptop
         \begin{scope}[ocg={ref=const-vptop, status=invisible, opts={radiobtngrp=const}}]
             \node[draw, fit=(vp1), fill=red, inner sep=0, opacity=0.5] {};
@@ -184,6 +201,12 @@
             \node[draw, fit=(vptop-left), fill=green, inner sep=0, minimum height=1em, opacity=0.5] {};
             \node[draw, fit=(w4), fill=cyan, inner sep=0, minimum height=1em, opacity=0.5] {};
             \draw[ultra thick, cyan] (vp1.south) -- (w4.north);
+    
+            % highlight in definition
+            \node[draw, fit=(const-label), fill=red, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(const-yield), fill=green, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(const-head), fill=cyan, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(disc-text), fill=yellow, inner sep=0, opacity=0.5] {};
         \end{scope}
     
         % vpbot
@@ -193,6 +216,12 @@
             \node[draw, fit=(vpbot-left), fill=green, inner sep=0, minimum height=1em, opacity=0.5] {};
             \node[draw, fit=(w3), fill=cyan, inner sep=0, minimum height=1em, opacity=0.5] {};
             \draw[ultra thick, cyan] (vp2.south) -- (w3.north);
+    
+            % highlight in definition
+            \node[draw, fit=(const-label), fill=red, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(const-yield), fill=green, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(const-head), fill=cyan, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(disc-text), fill=yellow, inner sep=0, opacity=0.5] {};
         \end{scope}
     
         % c-yld
@@ -201,6 +230,11 @@
             \node[draw, fit=(c-yld), fill=green, inner sep=0, minimum height=1em, opacity=0.5] {};
             \node[draw, fit=(w2), fill=cyan, inner sep=0, minimum height=1em, opacity=0.5] {};
             \draw[ultra thick, cyan] (s.south) -- (w2.north);
+    
+            % highlight in definition
+            \node[draw, fit=(const-label), fill=red, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(const-yield), fill=green, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(const-head), fill=cyan, inner sep=0, opacity=0.5] {};
         \end{scope}
     
         % s-yld
@@ -210,341 +244,346 @@
             \node[draw, fit=(w2), fill=cyan, inner sep=0, minimum height=1em, opacity=0.5] {};
             \draw[ultra thick, cyan] (vroot.south) -- (s.north);
             \draw[ultra thick, cyan] (s.south) -- (w2.north);
+            
+            % highlight in definition
+            \node[draw, fit=(const-label), fill=red, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(const-yield), fill=green, inner sep=0, opacity=0.5] {};
+            \node[draw, fit=(const-head), fill=cyan, inner sep=0, opacity=0.5] {};
         \end{scope}
     \end{tikzpicture}
-    \caption{Example of a discontinuous constituent tree for the German sentence \textit{"Darüber muss nachgedacht werden."} ("this must be considered."). Bold lines indicate head words.}
-\end{figure}
+\end{frame}
 
-\section{Encoder-Decoder Setup}
-Let \(N = \qty{1, \ldots, n}\) be an index set. Given an input sentence \(w = \qty(w_{i})_{i \in N}\) we generate a sequence of \textit{embeddings} \(\boldsymbol{\omega} = \qty(\boldsymbol{\omega}_{i})_{i \in N}\) where
-\[
-    \boldsymbol{\omega}_{i} = \mathbf{WordEmbed}(w_{i}) \oplus \mathbf{CharEmbed}(w_{i}) \oplus \mathbf{BertEmbed}(w_{i}) 
-\]
+\begin{frame}
+    \frametitle{Reduction to dependency parsing}
 
-\textbf{Encoder}: feed embeddings through a multi-layer bi-directional LSTM with skip-connections and dropout:
-\[
-    \vb{e} = \qty(\vb{e}_{i})_{i = 0, \ldots, n} = \mathbf{BiLSTM}(\boldsymbol{\omega})
-\]
+    \begin{definition}
+        A \textit{dependency tree} is a rooted tree spanning the words in the sentence \(\qty(w_{i})_{i=1}^{N}\). Each edge is labelled and connects a \textit{head word} (parent) to a \textit{dependency} (child).
+    \end{definition}
 
-\textbf{Decoder}: feed embeddings through a single-layer uni-directional LSTM with dropout:
-\[
-    \vb{d} = \qty(\vb{d}_{i})_{i = 1, \ldots, n} = \mathbf{LSTM}(\boldsymbol{\omega})
-\]
+    \textcite{fernandez2015parsing} show that constituent trees are isomorphic to dependency trees in which the edges contain information about constituent labels and attachment order.
 
-\section{Bi-affine Attention Mechanism}
-Goal: given dependency (child) \(w_{j}\), choose the most probable head (parent) \(e_{i}\). We feed \(\vb{e}\) and \(\vb{d}\) through MLPs to produce sequences \((\vb{e}^{\mathrm{arc}}, \vb{d}^{\mathrm{arc}})\) of dimension-reduced vectors. These are fed into a bi-affine layer which produces latent features \(\vb{v}^{\mathrm{arc}}\) that are then fed into an attention layer, resulting in logits corresponding to strength of an arc.
-\begin{align}
-    \vb{e}^{\mathrm{arc}} &= \mathbf{MLP}_{\mathrm{enc}}^{\mathrm{arc}}(\vb{e}); \qquad \qquad \vb{d}^{\mathrm{arc}} = \mathbf{MLP}_{\mathrm{dec}}^{\mathrm{arc}}(\vb{d}) \\
-    \vb{v}^{\mathrm{arc}}_{i,j} &= \mathbf{BiAff}^{\mathrm{arc}}(\vb{e}^{\mathrm{arc}}_{i}, \vb{d}^{\mathrm{arc}}_{j}) \\
-    &\coloneqq {\vb{e}^{\mathrm{arc}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\mathrm{arc}} \vb{d}_{i}^{\mathrm{arc}}  + \mathcolorbox{yellow}{
-            {\vb{e}_{i}^{\mathrm{arc}}}\tran \mathbf{U}_{\text{h-h}}^{\mathrm{arc}} \vb{e}_{i}^{\mathrm{arc}}
-            + {\vb{d}_{i}^{\mathrm{arc}}}\tran \mathbf{U}_{\text{d-d}}^{\mathrm{arc}} \vb{d}_{i}^{\mathrm{arc}}
-        } \\
-        &\phantom{\coloneqq}\  + U_{\text{h}}^{\mathrm{arc}} \vb{e}_{i}^{\mathrm{arc}}
-        + U_{\text{d}}^{\mathrm{arc}} \vb{d}_{i}^{\mathrm{arc}}
-        + \vb{u}_{\text{bias}}^{\mathrm{arc}} \\
-        s_{i,j}^{\mathrm{arc}} &= \mathcolorbox{yellow}{{\vb{u}_{\text{agg}}^{\mathrm{arc}}} \tran \mathrm{tanh}(\vb{v}_{i,j}^{\mathrm{arc}})}
-\end{align}
+    \begin{columns}[onlytextwidth]
+        \begin{column}{0.45\textwidth}
+            \begin{figure}
+                \centering
+                \begin{tikzpicture}[remember picture]
+                    \node[inner sep=0, text depth=0] (wc) {\subnode[inner sep=0]{sc-yld}{\subnode[inner sep=0]{cc-yld}{\subnode[inner sep=0]{vptopc-left}{\subnode[inner sep=0]{vpbotc-left}{\subnode[inner sep=2pt]{wc1}{Darüber}}} \subnode[inner sep=2.5pt]{wc2}{muss} \subnode[inner sep=0]{vptopc-right}{\subnode[inner sep=0]{vpbotc-right}{\subnode[inner sep=1.5pt]{wc3}{nachgedacht}} \subnode[inner sep=1.5pt]{wc4}{werden}}} \subnode[inner sep=2.5pt]{wc5}{.}}};
+                
+                    \foreach \n/\english in {1/about this,2/must,3/considered,4/be,5/.} \node[below=1ex of {wc\n |- wc.south}, inner sep=0, align=center] {\(w_{\n}\) \\[0ex] \scalebox{0.8}{\textit{\english}}};
+                    
+                    % \coordinate (s) at ({barycentric cs:w1=1,w2=1,w3=1,w4=1} |- {barycentric cs:w=1,vroot=4});
+                    
+                    \node[switch ocg=constc-s] (vrootc) at ($(wc) + (0, 3cm)$)  {S};
+                    \node[switch ocg=constc-c] (sc) at ({barycentric cs:wc1=1,wc2=3,wc3=1,wc4=1} |- {barycentric cs:wc=1,vrootc=3}) {C};
+                    \node[switch ocg=constc-vptop] (vpc1) at ({barycentric cs:wc1=1,wc3=1,wc4=1} |- {barycentric cs:wc=2,vrootc=2}) {VP};
+                    \node[switch ocg=constc-vpbot] (vpc2) at ({barycentric cs:wc1=1,wc3=3} |- {barycentric cs:wc=3,vrootc=1}) {VP};
+                
+                    \draw[very thin] (vrootc.south) -- (wc5.north);
+                    \draw[ultra thick] (vrootc.south) -- (sc.north);
+                    \draw[ultra thick] (sc.south) -- (wc2.north);
+                    \draw[very thin] (sc.south) -- (vpc1.north);
+                    \draw[ultra thick] (vpc1.south) -- (wc4.north);
+                    \draw[very thin] (vpc1.south) -- (vpc2.north);
+                    \draw[very thin] (vpc2.south) -- (wc1.north);
+                    \draw[ultra thick] (vpc2.south) -- (wc3.north);
+                \end{tikzpicture}
+            \end{figure}
+        \end{column}
+        \begin{column}{0.1\textwidth}
+            \tikz\draw[blue,thick,Stealth-Stealth] (0,0) -- (\textwidth,0);
+        \end{column}
+        \begin{column}{0.45\textwidth}
+            \begin{figure}
+                \centering
+                \begin{tikzpicture}[remember picture]
+                    \node[inner sep=0, text depth=0] (w) at (0,0) {\subnode[inner sep=2pt]{wd1}{Darüber} \subnode[inner sep=2.5pt]{wd2}{muss} \subnode[inner sep=1.5pt]{wd3}{nachgedacht} \subnode[inner sep=1.5pt]{wd4}{werden} \subnode[inner sep=2.5pt]{wd5}{.}};
+            
+                    % muss
+                    \draw[-Stealth] ($(wd2.north) + (2pt, 0)$) to [bend left=50] node [above, scale=0.5] {C\#1} ($(wd4.north) + (2pt, 0)$);
+                    \draw[-Stealth] ($(wd2.north) + (2pt, 0)$) to [bend left=80] node [above, scale=0.5] (s2) {S\#2} (wd5.north);
+            
+                    % werden
+                    \draw[-Stealth] ($(wd4.north) - (2pt, 0)$) to [bend right=30] node [above, scale=0.5] {VP\#1} ($(wd3.north) + (2pt, 0)$);
+            
+                    % nachgedacht
+                    \draw[-Stealth] ($(wd3.north) - (2pt, 0)$) to [bend right=60] node [above, scale=0.5] {VP\#1} (wd1.north);
+            
+                    % % root
+                    % \node[scale=0.5] (root) at ({$(wd2) - (2pt, 0)$} |- s2) {\texttt{root}};
+                    % \draw[-Stealth] (root.south) -- (root |- wd2.north);
 
-Fixing dependency \(j\), the vector \(\mathbf{softmax}(\vb{s}_{:, j})\) can be interpreted as an estimated probability distribution over potential heads.
-\[
-    \hat{p}^{\mathrm{arc}}(w_{i} \mid y_{<j}, w) = \mathbf{softmax}(\vb{s}_{:,j}^{\mathrm{arc}})_{i}.
-\]
+                    \foreach \n in {1,2,3,4,5} \node[below=1ex of {wd\n |- w.south}, inner sep=0, align=center] {\(w_{\n}\)};
+                \end{tikzpicture}
+            \end{figure}
+        \end{column}
+    \end{columns}
+\end{frame}
 
-\begin{tikzpicture}
-    \foreach \word / \n / \s in {/0/, Darüber/1/\(w_{1}\), muss/2/\(w_{2}\), nachgedacht/3/\(w_{3}\), werden/4/\(w_{4}\), ./5/\(w_{5}\)}
-    {
-        \node[
-            shape=rectangle,
-            inner sep=0pt,
-            fill=none,
-            text=black,
-            anchor=north
-        ] (wd\n) at (0.7 * \n, 0) {\rotatebox{90}{\word}};
-        \node[
-            name=w\n,
-            above=0.2cm of wd\n,
-            text depth=0,
-            text height=1em,
-            inner sep=0
-        ] {\s};
-    }
+\section{Model}
+\subsection{Mathematical Formulation}
+\begin{frame}
+    \frametitle{Mathematical formalisation}
+    \begin{columns}[t,onlytextwidth]
+        \begin{column}[t]{0.6\textwidth}
+            \vspace{0pt}
+            \begin{itemize}
+                \item Regressor: sentence \(\qty(w_{i})_{i = 1}^{N}\).
+                \item Regressand: dependency tree, parts of speech and morphology.
+                \item Bottom-up approach: think of \textit{arcs} going from every child \(w_{i}\) to its parent \(y_{i}^{\text{arc}} \in w \setminus w_{i}\).
+            \end{itemize}
+        \end{column}
+        \begin{column}[t]{0.4\textwidth}
+            % \begin{figure}
+                \raggedleft
+                \scalebox{0.8}{\begin{tikzpicture}[remember picture,baseline=(current bounding box.north west)]
+                    \node[font=\small,inner sep=0, text depth=0] (wdd) at (0,0) {\subnode[inner sep=0]{start}{\hspace{3em}} \subnode[inner sep=2pt]{wdd1}{Darüber} \subnode[inner sep=2.5pt]{wdd2}{muss} \subnode[inner sep=1.5pt]{wdd3}{nachgedacht} \subnode[inner sep=1.5pt]{wdd4}{werden} \subnode[inner sep=2.5pt]{wdd5}{.}};
+            
+                    % lines and text
+                    % muss
+                    \draw[blue,thick,Stealth-] ($(wdd2.north) + (6pt, 0)$) to [bend left=50] node [black,above, scale=0.5] {C\#1} ($(wdd4.north) + (2pt, 0)$);
+                    \draw[blue,thick,Stealth-] ($(wdd2.north) + (3pt, 0)$) to [bend left=80] node [black,above, scale=0.5] (s2) {S\#2} (wdd5.north);
+            
+                    % werden
+                    \draw[blue,thick,Stealth-] ($(wdd4.north) - (2pt, 0)$) to [bend right=30] node [black,above, scale=0.5] {VP\#1} ($(wdd3.north) + (2pt, 0)$);
+            
+                    % nachgedacht
+                    \draw[blue,thick,Stealth-] ($(wdd3.north) - (2pt, 0)$) to [bend right=60] node [black,above, pos=0.45, scale=0.5] {VP\#1} (wdd1.north);
+            
+                    % root
+                    \node[black,scale=0.5] (root) at ({$(wdd2) - (2pt, 0)$} |- s2) {\texttt{(root)}};
+                    \draw[blue,thick,Stealth-] (root.south) -- (root |- wdd2.north);
 
-    \coordinate[above=0.5cm of w1.north west] (embedbl) {};
-    \coordinate[above=1cm of w5.north east] (embedtr) {};
-    \draw[semithick] (embedbl) rectangle (embedtr) node [pos=0.5,scale=0.68] {\(\scriptscriptstyle\mathbf{WordEmbed} \oplus \mathbf{CharEmbed} \oplus \mathbf{BertEmbed}\)};
+                    % word number labels
+                    \foreach \n in {1,2,3,4,5} \node[below=1ex of {wdd\n |- wdd.south}, inner sep=0, align=center] (wddlab\n) {\(w_{\n}\)};
 
-    \foreach \n in {0,1,2,3,4,5}
-    {
-        \node[
-            above = 0.5cm of {w\n |-embedtr},
-            draw,
-            rectangle,
-            semithick,
-            inner sep=0,
-            minimum width=0.4cm,
-            minimum height=1cm,
-            label={[scale=0.8]center:$\vb{e}_{\n}$}
-        ] (e\n) {};
-    }
+                    % regressand labels
+                    \foreach \i/\m in {1/{0/\(w_{3}\),1/VP,2/1,3/PAV,4/--},2/{0/\texttt{(root)},1/--,2/--,3/VM,4/fin},3/{0/\(w_{4}\),1/VP,2/1,3/V,4/part},4/{0/\(w_{2}\),1/C,2/1,3/VA,4/inf},5/{0/\(w_{2}\),1/S,2/2,3/\$.,4/--}}
+                    {
+                        \foreach \j/\k in \m
+                        {
+                            \node[scale=0.8,gray,inner sep=0] (pos\i\j) at ($({wdd\i.center |- wddlab1.south}) - (0, 4pt) - (0, 1.7ex * \j) $) {\k};
+                        }
+                    }
+            
+                    \node[inner sep=0,anchor=west] at (start.west |- wdd1) {\(w\)};
+                    \foreach \j/\t in {0/arc,1/lab,2/ord,3/pos,4/morph}
+                    {
+                        \node[scale=0.8,gray,inner sep=0,anchor=west] at (start.west |- pos2\j) {\(y^{\text{\t}}\)};
+                    }
+                \end{tikzpicture}}
+            % \end{figure}        
+        \end{column}
+    \end{columns}
 
-    \foreach \n in {1,2,3,4,5}
-    {
-        \draw[-Stealth] (w\n.north) -- (w\n|-embedbl);
-        \draw[-Stealth] (w\n |- embedtr) -- (e\n.south) node[midway, right, scale=0.8] {\(\boldsymbol{\omega}_{\n}\)};
-    }
+    Denote the regressand by \(y = \qty(y_{i})_{i=1}^{N}\) where \(y_{i} = (y_{i}^{\text{arc}}, y_{i}^{\text{lab}}, y_{i}^{\text{ord}}, y_{i}^{\text{pos}}, y_{i}^{\text{morph}})\) and with mild abuse of notation let \(y_{<i} = \qty(y_{1}, \ldots, y_{i})\) for each \(i = 2, \ldots, N\) and \(y_{<1} = 0\).
+    
+    \begin{assumption}
+        For each \(i = 1, \ldots, N\), the random variables \(y_{i}^{\text{lab}}, y_{i}^{\text{ord}}, y_{i}^{\text{pos}}\) and \(y_{i}^{\text{morph}}\) are mutually independent conditional on \(y_{i}^{\text{arc}}\), \(y_{<i}\) and \(w\).
+    \end{assumption}
+    We can decompose the conditional probability of \(y\) given \(w\): \\[-1.5em]
+    \begin{align*}
+        p_{w}(y) &= \prod_{i=1}^{N} p_{w}(y_{i} \mid y_{<i}) \\[-0.5em]
+        &= \prod_{i=1}^{N} \Big\{ p_{w}(y_{i}^{\text{arc}} \mid y_{<i}) p_{w}(y_{i}^{\text{lab}} \mid y_{i}^{\text{arc}}, y_{<i}) \\[-2.5em]
+        & \phantom{\ = \prod_{i=1}^{N} \Big\{} \cdot p_{w}(y_{i}^{\text{ord}} \mid y_{i}^{\text{arc}}, y_{<i}) p_{w}(y_{i}^{\text{pos}} \mid y_{i}^{\text{arc}}, y_{<i}) p_{w}(y_{i}^{\text{morph}} \mid y_{i}^{\text{arc}}, y_{<i}) \Big\}.
+    \end{align*}
+\end{frame}
 
-    \foreach \n/\m in {0/1,1/2,2/3,3/4,4/5}
-    {
-        \draw[-Stealth] ($(e\n.east) + (0, 4pt)$) -- ($(e\m.west) + (0, 4pt)$) {};
-        \draw[Stealth-] ($(e\n.east) - (0, 4pt)$) -- ($(e\m.west) - (0, 4pt)$) {};
-    }
+\subsection{Encoder-decoder setup}
+\begin{frame}
+    \frametitle{Encoder-decoder setup}
+    Given an input sentence \(w = \qty(w_{i})_{i=1}^{N}\) we generate \textit{embeddings} \(\boldsymbol{\omega} = \qty(\boldsymbol{\omega}_{i})_{i=1}^{N}\), where
+    \[
+        \boldsymbol{\omega}_{i} = \mathbf{WordEmbed}(w_{i}) \oplus \mathbf{CharEmbed}(w_{i}) \oplus \mathbf{BertEmbed}(w_{i}).
+    \]
 
-    \foreach \n/\j in {0/1,1/2,2/3,3/4,4/5}{
-        \node[
-            draw,
-            rectangle,
-            semithick,
-            inner sep=0,
-            minimum width=0.4cm,
-            minimum height=1cm,
-            label={[scale=0.8]center:$\vb{d}_{\j}$}
-        ] (d\j) at ($(e5) + (1 + 0.7 * \n, 0)$) {};
-    }
+    \begin{itemize}
+        \item \(\mathbf{CharEmbed}\) is implemented using a CNN á la \textcite{chiu2016named}.
+        \item BERT model pre-trained on German text by \textcite{bert-base-german-cased}.
+    \end{itemize}
 
-    \draw[-Stealth] (e5) -- (d1);
+    \textbf{Encoder}: feed embeddings through a multi-layer bi-directional LSTM with skip-connections and dropout:
+    \[
+        \vb{e} = \qty(\vb{e}_{i})_{i = 0, \ldots, n} = \mathbf{BiLSTM}(\boldsymbol{\omega}).
+    \]
 
-    \foreach \n/\m in {1/2,2/3,3/4,4/5}
-    {
-        \draw[-Stealth] (d\n) -- (d\m) {};
-    }
-    \foreach \word/\j in {Darüber/1,muss/2,nachgedacht/3,werden/4,./5}
-    {
-        \node[
-            anchor=north,
-            text depth=0,
-            text height=1em,
-            inner sep=0
-        ] (ecopy\j) at (d\j |- embedtr.north) {$\vb{e}_{\j}$} edge[-Stealth] (d\j);
-        \node[
-            shape=rectangle,
-            inner sep=0pt,
-            fill=none,
-            text=black,
-            anchor=north
-        ] at (wd\j.north -| ecopy\j) {\rotatebox{90}{(\word)}};
-    }
+    (\(\vb{e}_{0}\) represents the root pseudo-node.)
 
-    \coordinate[above=0.5cm of e0.north west] (mlpencbl) {};
-    \coordinate[above=0.9cm of e5.north east] (mlpenctr) {};
-    \draw[semithick] (mlpencbl) rectangle (mlpenctr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\mathrm{enc}}^{\mathrm{arc}}\)};
+    \textbf{Decoder}: feed embeddings through a single-layer uni-directional LSTM with dropout:
+    \[
+        \vb{d} = \qty(\vb{d}_{i})_{i = 1, \ldots, n} = \mathbf{LSTM}(\boldsymbol{\omega}).
+    \]
 
-    \coordinate[above=0.5cm of d1.north west] (mlpdecbl) {};
-    \coordinate[above=0.9cm of d5.north east] (mlpdectr) {};
-    \draw[semithick] (mlpdecbl) rectangle (mlpdectr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\mathrm{dec}}^{\mathrm{arc}}\)};
+\end{frame}
 
-    \foreach \i in {0,1,2,3,4,5}
-    {
-        \draw[-Stealth] (e\i.north) -- (e\i |- mlpencbl);
-    }
+\subsection{Attention}
+\begin{frame}
+    \frametitle{The pointer network: bi-affine attention mechanism}
+    \framesubtitle{Taking inspiration from \textcite{dozat2016deep} and \textcite{vinyals2015pointer}.}
+    \begin{columns}[t,onlytextwidth]
+        \begin{column}[t]{0.52\textwidth}
+            \begin{itemize}
+            \item Obtain dimension-reduced representations:
+            \[
+                \vb{e}^{\text{arc}} = \mathbf{MLP}_{\text{enc}}^{\text{arc}}(\vb{e}); \quad \vb{d}^{\text{arc}} = \mathbf{MLP}_{\text{dec}}^{\text{arc}}(\vb{d}).
+            \]
 
-    \coordinate[above=0.5cm of {mlpdecbl |- mlpdectr}] (biafbl) {};
-    \coordinate[above=0.4cm of {biafbl -| mlpdectr}] (biaftr) {};
-    \draw[semithick] (biafbl) rectangle (biaftr) node [pos=0.5,scale=0.8] (biaf) {\(\mathbf{BiAff}^{\mathrm{arc}}\)};
-    \foreach \i in {0,1,2,3,4,5}
-    {
-        \draw (e\i.north |- mlpenctr) -- (e\i |- biaf);
-    }
-    \draw[-Stealth] (e0.north |- biaf) -- (biaf.west -| biafbl);
+            \item Obtain \textit{latent features} \(\vb{v}^{\text{arc}}\):
+            \begin{align*}
+                \vb{v}^{\text{arc}}_{i,j} &= \mathbf{BiAff}^{\text{arc}}(\vb{e}^{\text{arc}}_{i}, \vb{d}^{\text{arc}}_{j}) \\
+                &\coloneqq {\vb{e}^{\text{arc}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\text{arc}} \vb{d}_{i}^{\text{arc}} \\
+                    &\phantom{\coloneqq}\   + \mathcolorbox{yellow}{
+                        {\vb{e}_{i}^{\text{arc}}}\tran \mathbf{U}_{\text{h-h}}^{\text{arc}} \vb{e}_{i}^{\text{arc}}
+                        + {\vb{d}_{i}^{\text{arc}}}\tran \mathbf{U}_{\text{d-d}}^{\text{arc}} \vb{d}_{i}^{\text{arc}}
+                    } \\
+                    &\phantom{\coloneqq}\  + U_{\text{h}}^{\text{arc}} \vb{e}_{i}^{\text{arc}}
+                    + U_{\text{d}}^{\text{arc}} \vb{d}_{i}^{\text{arc}}
+                    + \vb{u}_{\text{bias}}^{\text{arc}}.
+            \end{align*}
 
-    \foreach \j in {1,2,3,4,5}
-    {
-        \draw[-Stealth] (d\j.north) -- (d\j |- mlpdecbl);
-        \draw[-Stealth] (d\j |- mlpdectr) -- (d\j |- biafbl);
-        \coordinate (p\j) at ($(biaftr) + (0, 0.5cm * \j)$);
-        \coordinate (q\j) at ($(biaftr) + (0, 0.5cm * \j) - (0, 0.4cm)$);
-    }
-    \foreach \j in {1,2,3,4,5}
-    {
-        \foreach \i in {0,1,2,3,4,5} {
-            \draw[opacity=0.3, dotted,arrows=-Stealth] (biaftr -| d\j) -- (p\j -| d\j) -- (p\j -| e\i) -- (q\j -| e\i);
-        }
-    }
-    \foreach \j\i in {1/3,2/0,3/4,4/2,5/2}
-    {
-        \path[tips,black,thick,dotted,arrows={-Stealth}] (p\j -| e\i) -- (q\j -| e\i);
-    }
-\end{tikzpicture}
-
-\section{Bi-affine Classifier for Attachment Order, POS and Morphology}
-Attachment order, POS and morphologies are predicted via a classification. We use a bi-affine classifier which allows us to model probabilities \textit{conditional} on arcs, and thus use structural cues in addition to encoder/decoder states to better capture the complexity of the language. The encoder and decoder are \textit{shared} across the tasks.
-
-For example suppose we would like to predict the part of speech \(c \in \mathcal{C}\) for word \(w_{j}\) conditional on its parent being \(w_{i}\).
-\begin{align}
-    \vb{e}^{\mathrm{pos}} &= \mathbf{MLP}_{\mathrm{enc}}^{\mathrm{pos}}(\vb{e}); \qquad \qquad \vb{d}^{\mathrm{pos}} = \mathbf{MLP}_{\mathrm{dec}}^{\mathrm{pos}}(\vb{d}) \\
-    \vb{v}^{\mathrm{pos}}_{i,j} &= \mathbf{BiAff}^{\mathrm{pos}}(\vb{e}^{\mathrm{pos}}_{i}, \vb{d}^{\mathrm{pos}}_{j}) \\
-    &\coloneqq {\vb{e}^{\mathrm{pos}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\mathrm{pos}} \vb{d}_{i}^{\mathrm{pos}}  + 
-            {\vb{e}_{i}^{\mathrm{pos}}}\tran \mathbf{U}_{\text{h-h}}^{\mathrm{pos}} \vb{e}_{i}^{\mathrm{pos}}
-            + {\vb{d}_{i}^{\mathrm{pos}}}\tran \mathbf{U}_{\text{d-d}}^{\mathrm{pos}} \vb{d}_{i}^{\mathrm{pos}}
-         \\
-        &\phantom{\coloneqq}\  + U_{\text{h}}^{\mathrm{pos}} \vb{e}_{i}^{\mathrm{pos}}
-        + U_{\text{d}}^{\mathrm{pos}} \vb{d}_{i}^{\mathrm{pos}}
-        + \vb{u}_{\text{bias}}^{\mathrm{pos}} \\
-        \hat{p}^{\mathrm{pos}}(c \mid w_{i}; y_{<j}, w) &= \mathbf{softmax}(\vb{v}^{\mathrm{pos}}_{i,j})_{c}
-\end{align}
-
-
-\begin{figure}[H]
-    \centering
-    \begin{tikzpicture}
-        \foreach \word / \n in {\texttt{root}/0, Darüber/1, muss/2, nachgedacht/3, werden/4, ./5}
-        {
-            \node[overlay,transparent,
-                shape=rectangle,
-                inner sep=0pt,
-                fill=none,
-                text=black,
-                anchor=north
-            ] (wd\n) at (0.7 * \n, 0) {\rotatebox{-90}{\word}};
-            \node[overlay,transparent,
-                name=w\n,
-                above=0.2cm of wd\n,
-                text depth=0,
-                text height=1em,
-                inner sep=0
-            ] {$w_{\n}$};
-        }
-
-        \coordinate[above=0.5cm of w0.north west] (embedbl) {};
-        \coordinate[above=1cm of w5.north east] (embedtr) {};
-        \draw[overlay,transparent,semithick] (embedbl) rectangle (embedtr) node [pos=0.5,scale=0.8] {\(\mathbf{WordEmbed} \oplus \mathbf{CharEmbed} \oplus \mathbf{BertEmbed}\)};
-
-        \foreach \n in {0,1,2,3,4,5}
-        {
-            \draw[overlay,transparent,-Stealth] (w\n.north) -- (w\n|-embedbl);
-            \node[
-                above = 0.5cm of {w\n |-embedtr},
-                draw,
-                rectangle,
-                semithick,
-                inner sep=0,
-                minimum width=0.4cm,
-                minimum height=1cm,
-                label={[scale=0.8]center:$\vb{e}_{\n}$}
-            ] (e\n) {};
-            \draw[overlay,transparent,-Stealth] (w\n |- embedtr) -- (e\n.south);
-        }
-
-        \foreach \n/\m in {0/1,1/2,2/3,3/4,4/5}
-        {
-            \draw[-Stealth] ($(e\n.east) + (0, 4pt)$) -- ($(e\m.west) + (0, 4pt)$) {};
-            \draw[Stealth-] ($(e\n.east) - (0, 4pt)$) -- ($(e\m.west) - (0, 4pt)$) {};
-        }
-
-        \foreach \n/\j in {0/1,1/2,2/3,3/4,4/5}{
-            \node[
-                draw,
-                rectangle,
-                semithick,
-                inner sep=0,
-                minimum width=0.4cm,
-                minimum height=1cm,
-                label={[scale=0.8]center:$\vb{d}_{\j}$}
-            ] (d\j) at ($(e5) + (1 + 0.7 * \n, 0)$) {};
-        }
-
-        \draw[-Stealth] (e5) -- (d1);
-
-        \foreach \n/\m in {1/2,2/3,3/4,4/5}
-        {
-            \draw[-Stealth] (d\n) -- (d\m) {};
-        }
-        \foreach \word/\j in {Darüber/1,muss/2,nachgedacht/3,werden/4,./5}
-        {
-            \node[
-                anchor=north,
-                text depth=0,
-                text height=1em,
-                inner sep=0
-            ] (ecopy\j) at (d\j |- embedtr.north) {$\vb{e}_{\j}$} edge[-Stealth] (d\j);
-            \node[overlay,transparent,
-                shape=rectangle,
-                inner sep=0pt,
-                fill=none,
-                text=black,
-                anchor=north
-            ] at (wd\j.north -| ecopy\j) {\rotatebox{-90}{(\word)}};
-        }
-
-        \foreach \i in {1,2,3,4,5}
-        {
-            \node[
-                anchor=north,
-                text depth=0,
-                text height=1em,
-                inner sep=0
-            ] (omega\i) at (e\i |- embedtr.north) {$\boldsymbol{\omega}_{\i}$} edge[-Stealth] (e\i);
-        }
-
-        \coordinate[above=0.5cm of e0.north west] (mlpencbl) {};
-        \coordinate[above=0.9cm of e5.north east] (mlpenctr) {};
-        \draw[semithick] (mlpencbl) rectangle (mlpenctr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\mathrm{enc}}^{\mathrm{pos}}\)};
-
-        \coordinate[above=0.5cm of d1.north west] (mlpdecbl) {};
-        \coordinate[above=0.9cm of d5.north east] (mlpdectr) {};
-        \draw[semithick] (mlpdecbl) rectangle (mlpdectr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\mathrm{dec}}^{\mathrm{pos}}\)};
-
-        \foreach \i in {0,1,2,3,4,5}
-        {
-            \draw[-Stealth] (e\i.north) -- (e\i |- mlpencbl);
-        }
-
-        \coordinate[above=0.5cm of {mlpdecbl |- mlpdectr}] (biafbl) {};
-        \coordinate[above=0.4cm of {biafbl -| mlpdectr}] (biaftr) {};
-        \draw[semithick] (biafbl) rectangle (biaftr) node [pos=0.5,scale=0.8] (biaf) {\(\mathbf{BiAff}^{\mathrm{pos}}\)};
-        \foreach \i in {0,1,2,3,4,5}
-        {
-            \draw (e\i.north |- mlpenctr) -- (e\i |- biaf);
-        }
-        \draw[-Stealth] (e0.north |- biaf) -- (biaf.west -| biafbl);
-
-        \foreach \j in {1,2,3,4,5}
-        {
-            \draw[-Stealth] (d\j.north) -- (d\j |- mlpdecbl);
-            \draw[-Stealth] (d\j |- mlpdectr) -- (d\j |- biafbl);
-        }
-
-        \foreach \j in {1,2,3,4,5}
-        {
-            \coordinate (start\j) at (d\j |- {$(biaftr) + (0, 0.5cm)$});
-            \foreach \k/\o in {5/0.1,4/0.3,3/0.5,2/0.7,1/0.9}
+            \item Obtain \textit{attention logits}:
+            \[
+                s_{i,j}^{\text{arc}} = \mathcolorbox{yellow}{{\vb{u}_{\text{agg}}^{\text{arc}}} \tran \text{tanh}(\vb{v}_{i,j}^{\text{arc}})}.
+            \]
+            \end{itemize}
+        \end{column}
+        \begin{column}[t]{0.5\textwidth}
+            \raggedleft\scalebox{0.67}{ \begin{tikzpicture}[baseline=(current bounding box.north east)]
+                \foreach \word / \n / \s in {/0/, Darüber/1/\(w_{1}\), muss/2/\(w_{2}\), nachgedacht/3/\(w_{3}\), werden/4/\(w_{4}\), ./5/\(w_{5}\)}
                 {
                     \node[
+                        shape=rectangle,
+                        inner sep=0pt,
+                        fill=none,
+                        text=black,
+                        anchor=north
+                    ] (wd\n) at (0.7 * \n, 0) {\rotatebox{90}{\word}};
+                    \node[
+                        name=w\n,
+                        above=0.2cm of wd\n,
+                        text depth=0,
+                        text height=1em,
+                        inner sep=0
+                    ] {\s};
+                }
+            
+                \coordinate[above=0.5cm of w1.north west] (embedbl) {};
+                \coordinate[above=1cm of w5.north east] (embedtr) {};
+                \draw[semithick] (embedbl) rectangle (embedtr) node [pos=0.5,scale=0.95] {\(\scriptscriptstyle\mathbf{WordEmbed} \oplus \mathbf{CharEmbed} \oplus \mathbf{BertEmbed}\)};
+            
+                \foreach \n in {0,1,2,3,4,5}
+                {
+                    \node[
+                        above = 0.5cm of {w\n |-embedtr},
                         draw,
-                        draw opacity=\o,
                         rectangle,
                         semithick,
                         inner sep=0,
-                        minimum width=0.6cm,
+                        minimum width=0.4cm,
                         minimum height=1cm,
-                        anchor=south,
-                        fill=white
-                    ] (hello) at ($(start\j) + (0.02 * \k, 0.045 * \k)$) {};
+                        label={[scale=0.8]center:$\vb{e}_{\n}$}
+                    ] (e\n) {};
                 }
-            \node[
-                draw,
-                anchor=south,
-                rectangle,
-                semithick,
-                inner sep=0,
-                minimum width=0.6cm,
-                minimum height=1cm,
-                fill=white,
-                label={[scale=0.8]center:$\vb{v}^{\mathrm{pos}}_{:,\j}$},
-            ] (posclass\j) at (start\j) {} edge[Stealth-] (d\j |- biaftr);
-        }
-    \end{tikzpicture}
-\end{figure}
+            
+                \foreach \n in {1,2,3,4,5}
+                {
+                    \draw[-Stealth] (w\n.north) -- (w\n|-embedbl);
+                    \draw[-Stealth] (w\n |- embedtr) -- (e\n.south) node[midway, right, scale=0.8] {\(\boldsymbol{\omega}_{\n}\)};
+                }
+            
+                \foreach \n/\m in {0/1,1/2,2/3,3/4,4/5}
+                {
+                    \draw[-Stealth] ($(e\n.east) + (0, 4pt)$) -- ($(e\m.west) + (0, 4pt)$) {};
+                    \draw[Stealth-] ($(e\n.east) - (0, 4pt)$) -- ($(e\m.west) - (0, 4pt)$) {};
+                }
+            
+                \foreach \n/\j in {0/1,1/2,2/3,3/4,4/5}{
+                    \node[
+                        draw,
+                        rectangle,
+                        semithick,
+                        inner sep=0,
+                        minimum width=0.4cm,
+                        minimum height=1cm,
+                        label={[scale=0.8]center:$\vb{d}_{\j}$}
+                    ] (d\j) at ($(e5) + (1 + 0.7 * \n, 0)$) {};
+                }
+            
+                \draw[-Stealth] (e5) -- (d1);
+            
+                \foreach \n/\m in {1/2,2/3,3/4,4/5}
+                {
+                    \draw[-Stealth] (d\n) -- (d\m) {};
+                }
+                \foreach \word/\j in {Darüber/1,muss/2,nachgedacht/3,werden/4,./5}
+                {
+                    \node[
+                        anchor=north,
+                        text depth=0,
+                        text height=1em,
+                        inner sep=0
+                    ] (ecopy\j) at (d\j |- embedtr.north) {$\vb{e}_{\j}$} edge[-Stealth] (d\j);
+                    \node[
+                        shape=rectangle,
+                        inner sep=0pt,
+                        fill=none,
+                        text=black,
+                        anchor=north
+                    ] at (wd\j.north -| ecopy\j) {\rotatebox{90}{(\word)}};
+                }
+            
+                \coordinate[above=0.5cm of e0.north west] (mlpencbl) {};
+                \coordinate[above=0.9cm of e5.north east] (mlpenctr) {};
+                \draw[semithick] (mlpencbl) rectangle (mlpenctr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\text{enc}}^{\text{arc}}\)};
+            
+                \coordinate[above=0.5cm of d1.north west] (mlpdecbl) {};
+                \coordinate[above=0.9cm of d5.north east] (mlpdectr) {};
+                \draw[semithick] (mlpdecbl) rectangle (mlpdectr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\text{dec}}^{\text{arc}}\)};
+            
+                \foreach \i in {0,1,2,3,4,5}
+                {
+                    \draw[-Stealth] (e\i.north) -- (e\i |- mlpencbl);
+                }
+            
+                \coordinate[above=0.5cm of {mlpdecbl |- mlpdectr}] (biafbl) {};
+                \coordinate[above=0.4cm of {biafbl -| mlpdectr}] (biaftr) {};
+                \draw[semithick] (biafbl) rectangle (biaftr) node [pos=0.5,scale=0.8] (biaf) {\(\mathbf{BiAff}^{\text{arc}}\)};
+                \foreach \i in {0,1,2,3,4,5}
+                {
+                    \draw (e\i.north |- mlpenctr) -- (e\i |- biaf);
+                }
+                \draw[-Stealth] (e0.north |- biaf) -- (biaf.west -| biafbl);
+            
+                \foreach \j in {1,2,3,4,5}
+                {
+                    \draw[-Stealth] (d\j.north) -- (d\j |- mlpdecbl);
+                    \draw[-Stealth] (d\j |- mlpdectr) -- (d\j |- biafbl);
+                    \coordinate (p\j) at ($(biaftr) + (0, 0.5cm * \j)$);
+                    \coordinate (q\j) at ($(biaftr) + (0, 0.5cm * \j) - (0, 0.4cm)$);
+                }
+                \foreach \j in {1,2,3,4,5}
+                {
+                    \foreach \i in {0,1,2,3,4,5} {
+                        \draw[opacity=0.3, dotted,arrows=-Stealth] (biaftr -| d\j) -- (p\j -| d\j) -- (p\j -| e\i) -- (q\j -| e\i);
+                    }
+                }
+                \foreach \j\i in {1/3,2/0,3/4,4/2,5/2}
+                {
+                    \path[tips,black,thick,dotted,arrows={-Stealth}] (p\j -| e\i) -- (q\j -| e\i);
+                }
+            \end{tikzpicture}}
+        \end{column}
+    \end{columns}
+    Fixing child \(w_{j}\), the vector \(\mathbf{softmax}(s^{\text{arc}}_{:, j})\) can be interpreted as an estimated probability distribution over potential parents.
+            \[
+                \hat{p}^{\text{arc}}(w_{i} \mid y_{<j}, w) = \mathbf{softmax}(s_{:,j}^{\text{arc}})_{i}.
+            \]
+\end{frame}
 
-Hi there
+\section{Data and Results}
+\section{Appendix}
+
+\begin{frame}
+    \frametitle{Bibliography}
+    \printbibliography
+\end{frame}
 \end{document}
