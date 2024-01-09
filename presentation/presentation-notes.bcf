@@ -2797,15 +2797,9 @@
     <bcf:citekey order="4">chiu2016named</bcf:citekey>
     <bcf:citekey order="5">bert-base-german-cased</bcf:citekey>
     <bcf:citekey order="6">bert-base-german-cased</bcf:citekey>
-    <bcf:citekey order="7">dozat2016deep</bcf:citekey>
-    <bcf:citekey order="8">dozat2016deep</bcf:citekey>
-    <bcf:citekey order="9">vinyals2015pointer</bcf:citekey>
-    <bcf:citekey order="10">vinyals2015pointer</bcf:citekey>
-    <bcf:citekey order="11">fernandez2015parsing</bcf:citekey>
-    <bcf:citekey order="12">chiu2016named</bcf:citekey>
-    <bcf:citekey order="13">bert-base-german-cased</bcf:citekey>
-    <bcf:citekey order="14">dozat2016deep</bcf:citekey>
-    <bcf:citekey order="15">vinyals2015pointer</bcf:citekey>
+    <bcf:citekey order="7">fernandez2015parsing</bcf:citekey>
+    <bcf:citekey order="8">chiu2016named</bcf:citekey>
+    <bcf:citekey order="9">bert-base-german-cased</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="apa">

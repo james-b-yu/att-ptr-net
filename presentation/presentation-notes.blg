@@ -1,0 +1,17 @@
+[0] Config.pm:307> INFO - This is Biber 2.17
+[0] Config.pm:310> INFO - Logfile is 'presentation-notes.blg'
+[83] biber-darwin:340> INFO - === Mon Jan  8, 2024, 18:25:29
+[101] Biber.pm:418> INFO - Reading 'presentation-notes.bcf'
+[224] Biber.pm:972> INFO - Found 3 citekeys in bib section 0
+[242] Biber.pm:4383> INFO - Processing section 0
+[253] Biber.pm:4574> INFO - Looking for bibtex file 'bib.bib' for section 0
+[254] bibtex.pm:1713> INFO - LaTeX decoding ...
+[262] bibtex.pm:1518> INFO - Found BibTeX data source 'bib.bib'
+[318] UCollate.pm:68> INFO - Overriding locale 'en-GB' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[318] UCollate.pm:68> INFO - Overriding locale 'en-GB' defaults 'variable = shifted' with 'variable = non-ignorable'
+[319] Biber.pm:4203> INFO - Sorting list 'apa/global//global/global' of type 'entry' with template 'apa' and locale 'en-GB'
+[319] Biber.pm:4209> INFO - No sort tailoring available for locale 'en-GB'
+[327] bbl.pm:654> INFO - Writing 'presentation-notes.bbl' with encoding 'UTF-8'
+[329] bbl.pm:757> INFO - Output to presentation-notes.bbl
+[330] Biber.pm:130> WARN - Duplicate entry key: 'chiu2016named' in file 'bib.bib', skipping ...
+[330] Biber.pm:132> INFO - WARNINGS: 1
