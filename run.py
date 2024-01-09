@@ -34,7 +34,7 @@ from torch.utils.tensorboard import SummaryWriter
 DEVICE_NAME = "cuda"
 DTYPE = torch.half
 
-(train_dataloader, train_new_words), (dev_dataloader, dev_new_words), _, character_set, character_flag_generators, inverse_word_dict, inverse_sym_dict, inverse_pos_dict, inverse_morph_dicts = pickle.load(open(required_vars_path, "rb"))
+(train_dataloader, train_new_words), _, (dev_dataloader, dev_new_words), character_set, character_flag_generators, inverse_word_dict, inverse_sym_dict, inverse_pos_dict, inverse_morph_dicts = pickle.load(open(required_vars_path, "rb"))
 
 MAX_ITER = float("inf")
 

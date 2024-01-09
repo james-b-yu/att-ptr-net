@@ -22,6 +22,22 @@ import re
 
 from torch.utils.tensorboard import SummaryWriter
 
+def _add_to_tensorboard_and_save(main_tag: str, tag_scalar_dict, global_step, summary_writer: SummaryWriter, saved_data=None):
+    if saved_data is None:
+        saved_data = {}
+
+    summary_writer.add_scalars(main_tag, tag_scalar_dict, global_step)
+
+    if main_tag not in saved_data:
+        saved_data[main_tag] = []
+    
+    saved_data[main_tag] = {
+        "tag_scalar_dict": tag_scalar_dict,
+        "global_step": global_step
+    }
+
+    return saved_data
+
 def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.device | str, epoch_num: int, dataloader: DataLoader[TigerDataset], new_words_dict: dict[int, str], inverse_word_dict: dict[int, str], inverse_sym_dict: dict[int, str], inverse_pos_dict: dict[int, str], inverse_morph_dicts: dict[str, dict[int, str]], tree_gen_rate: float, discodop_config_file: str, eval_dir, gradient_clipping=1, scheduler: torch.optim.lr_scheduler.LRScheduler|None=None, summary_writer: SummaryWriter|None=None, pos_replacements: dict[str, str]={}, training=False):
     poses_one_shot_helper = torch.eye(model.num_terminal_poses, device=device)
 
@@ -40,6 +56,8 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
 
     epoch_poses_f1 = 0.0
     epoch_morphs_f1: dict[str, float] = defaultdict(lambda: 0.0)
+    epoch_poses_accuracy = 0.0
+    epoch_morphs_accuracies: dict[str, float] = defaultdict(lambda: 0.0)
 
     brackets = []
     brackets_structure = []
@@ -107,7 +125,7 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
 
         loss = (loss_attention + loss_labels + loss_poses + loss_orders + loss_morph)
 
-        ## CALCULATE F1 METRICS
+        ## CALCULATE F1 AND ACCURACY METRICS
         ### parts of speech
         pred_poses = poses_logits.argmax(dim=-1)
         # pred_poses_one_shot = poses_one_shot_helper[pred_poses]
@@ -119,21 +137,38 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
             target=target_poses_indexed,
             num_classes=model.num_terminal_poses
         ).item())
+        poses_accuracy = float(EF.multiclass_accuracy(
+            input=pred_poses,
+            target=target_poses_indexed,
+            num_classes=model.num_terminal_poses
+        ).item())
 
         del pred_poses
         del target_poses_indexed
 
         ### morphology
         morphs_f1_scores: dict[str, float] = {}
+        morphs_accuracies: dict[str, float] = {}
+
+
         for m in target_morphs:
             pred_morphs = morphs_logits[m].argmax(dim=-1)
             target_morphs_indexed_m = target_morphs_indexed[m]
+
             morphs_f1_score_m = EF.multiclass_f1_score(
                 input=pred_morphs,
                 target=target_morphs_indexed_m,
                 num_classes=model.morph_prop_classes[m]
             )
             morphs_f1_scores[m] = float(morphs_f1_score_m.item())
+            morphs_accuracy_m = EF.multiclass_accuracy(
+                input=pred_morphs,
+                target=target_morphs_indexed_m,
+                num_classes=model.morph_prop_classes[m]
+            )
+            morphs_accuracies[m] = float(morphs_accuracy_m.item())
+
+
             del pred_morphs
             del target_morphs_indexed_m
             
@@ -168,8 +203,12 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
             epoch_total_loss += loss.item()
 
             epoch_poses_f1 += poses_f1_score
+            epoch_poses_accuracy += poses_accuracy            
             for m, f1_score in morphs_f1_scores.items():
                 epoch_morphs_f1[m] += f1_score
+            for m, f1_accuracy in morphs_accuracies.items():
+                epoch_morphs_accuracies[m] += f1_accuracy
+                
 
             progress = sum_sentences / total_sentences
             eta_seconds = round((time() - epoch_start_time) * (1 - progress) / progress)
@@ -234,25 +273,36 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
     epoch_total_loss     /= epoch_length
 
     epoch_poses_f1 /= epoch_length
+    epoch_poses_accuracy /= epoch_length
     for m in epoch_morphs_f1:
         epoch_morphs_f1[m] /= epoch_length
+        epoch_morphs_accuracies[m] /= epoch_length
+
+    saved_metrics = None
 
     if summary_writer is not None:
-        summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_losses", {
+        saved_metrics = _add_to_tensorboard_and_save(f"epoch_{'trn' if training else 'dev'}_losses", {
             "attention": epoch_attention_loss,
             "label": epoch_label_loss,
             "pos": epoch_pos_loss,
             "order": epoch_order_loss,
             "morph": epoch_morph_loss,
             "total": epoch_total_loss
-        }, epoch_num + 1)
+        }, epoch_num + 1, summary_writer)
 
-        summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_morphs_f1", {
+        saved_metrics = _add_to_tensorboard_and_save(f"epoch_{'trn' if training else 'dev'}_morphs_f1", {
             "pos": epoch_poses_f1,
             **{
                 m: f1_score for m, f1_score in epoch_morphs_f1.items()
             }
-        }, epoch_num + 1)
+        }, epoch_num + 1, summary_writer, saved_metrics)
+
+        saved_metrics = _add_to_tensorboard_and_save(f"epoch_{'trn' if training else 'dev'}_morphs_accuracy", {
+            "pos": epoch_poses_accuracy,
+            **{
+                m: accuracy for m, accuracy in epoch_morphs_accuracies.items()
+            }
+        }, epoch_num + 1, summary_writer, saved_metrics)
 
     brackets_filename = f"{eval_dir}/{get_filename(epoch_num)}.txt"
     brackets_gold_filename = f"{eval_dir}/{get_filename(epoch_num)}_gold.txt"
@@ -306,11 +356,13 @@ def one_epoch(model: TigerModel, optim: torch.optim.Optimizer, device: torch.dev
                                             text=True).stdout
 
         if summary_writer is not None:
-            summary_writer.add_scalars(f"epoch_{'trn' if training else 'dev'}_f1", {
+            saved_metrics = _add_to_tensorboard_and_save(f"epoch_{'trn' if training else 'dev'}_f1", {
                 label: float(re.search(r".*labeled f-measure.*?([\d.]|nan)+.*?([\d.]+|nan)", res).groups()[1])
                 for (label, res) in [
                     ("full", brackets_res),
                     ("structure", brackets_structure_res),
                     ("full_disc", disc_brackets_res),
                     ("structure_disc", disc_brackets_structure_res)
-                ]}, epoch_num + 1)
+                ]}, epoch_num + 1, summary_writer, saved_metrics)
+            
+    return saved_metrics
