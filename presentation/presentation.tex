@@ -435,13 +435,13 @@
             \item Obtain \textit{latent features} \(\vb{v}^{\text{arc}}\):
             \begin{align*}
                 \vb{v}^{\text{arc}}_{i,j} &= \mathbf{BiAff}^{\text{arc}}(\vb{e}^{\text{arc}}_{i}, \vb{d}^{\text{arc}}_{j}) \\
-                &\coloneqq {\vb{e}^{\text{arc}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\text{arc}} \vb{d}_{i}^{\text{arc}} \\
+                &\coloneqq {\vb{e}^{\text{arc}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\text{arc}} \vb{d}_{j}^{\text{arc}} \\
                     &\phantom{\coloneqq}\   + \mathcolorbox{yellow}{
                         {\vb{e}_{i}^{\text{arc}}}\tran \mathbf{U}_{\text{h-h}}^{\text{arc}} \vb{e}_{i}^{\text{arc}}
-                        + {\vb{d}_{i}^{\text{arc}}}\tran \mathbf{U}_{\text{d-d}}^{\text{arc}} \vb{d}_{i}^{\text{arc}}
+                        + {\vb{d}_{j}^{\text{arc}}}\tran \mathbf{U}_{\text{d-d}}^{\text{arc}} \vb{d}_{j}^{\text{arc}}
                     } \\
                     &\phantom{\coloneqq}\  + U_{\text{h}}^{\text{arc}} \vb{e}_{i}^{\text{arc}}
-                    + U_{\text{d}}^{\text{arc}} \vb{d}_{i}^{\text{arc}}
+                    + U_{\text{d}}^{\text{arc}} \vb{d}_{j}^{\text{arc}}
                     + \vb{u}_{\text{bias}}^{\text{arc}}.
             \end{align*}
 
@@ -693,11 +693,11 @@
         
                 \coordinate[above=0.5cm of e0.north west] (mlpencbl) {};
                 \coordinate[above=0.9cm of e5.north east] (mlpenctr) {};
-                \draw[semithick] (mlpencbl) rectangle (mlpenctr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\mathrm{enc}}^{\mathrm{pos}}\)};
+                \draw[semithick] (mlpencbl) rectangle (mlpenctr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\text{enc}}^{\text{pos}}\)};
         
                 \coordinate[above=0.5cm of d1.north west] (mlpdecbl) {};
                 \coordinate[above=0.9cm of d5.north east] (mlpdectr) {};
-                \draw[semithick] (mlpdecbl) rectangle (mlpdectr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\mathrm{dec}}^{\mathrm{pos}}\)};
+                \draw[semithick] (mlpdecbl) rectangle (mlpdectr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\text{dec}}^{\text{pos}}\)};
         
                 \foreach \i in {0,1,2,3,4,5}
                 {
@@ -706,7 +706,7 @@
         
                 \coordinate[above=0.5cm of {mlpdecbl |- mlpdectr}] (biafbl) {};
                 \coordinate[above=0.4cm of {biafbl -| mlpdectr}] (biaftr) {};
-                \draw[semithick] (biafbl) rectangle (biaftr) node [pos=0.5,scale=0.8] (biaf) {\(\mathbf{BiAff}^{\mathrm{pos}}\)};
+                \draw[semithick] (biafbl) rectangle (biaftr) node [pos=0.5,scale=0.8] (biaf) {\(\mathbf{BiAff}^{\text{pos}}\)};
                 \foreach \i in {0,1,2,3,4,5}
                 {
                     \draw (e\i.north |- mlpenctr) -- (e\i |- biaf);
@@ -745,7 +745,7 @@
                         minimum width=0.6cm,
                         minimum height=1cm,
                         fill=white,
-                        label={[scale=0.8]center:$\vb{v}^{\mathrm{pos}}_{:,\j}$},
+                        label={[scale=0.8]center:$\vb{v}^{\text{pos}}_{:,\j}$},
                     ] (posclass\j) at (start\j) {} edge[Stealth-] (d\j |- biaftr);
                 }
             \end{tikzpicture}}
@@ -755,9 +755,9 @@
         \item Obtain class \textit{logits} \(\vb{v}^{\text{pos}}\):
             \begin{alignat*}{3}
                 \vb{v}^{\text{pos}}_{i,j} &= \mathbf{BiAff}^{\text{pos}}(\vb{e}^{\text{pos}}_{i}, \vb{d}^{\text{pos}}_{j}) \\
-                &\coloneqq {\vb{e}^{\text{pos}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\text{pos}} \vb{d}_{i}^{\text{pos}} +
+                &\coloneqq {\vb{e}^{\text{pos}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\text{pos}} \vb{d}_{j}^{\text{pos}} +
                         {\vb{e}_{i}^{\text{pos}}}\tran \mathbf{U}_{\text{h-h}}^{\text{pos}} \vb{e}_{i}^{\text{pos}} + U_{\text{h}}^{\text{pos}} \vb{e}_{i}^{\text{pos}} \\
-                    &\phantom{\coloneqq}\ + {\vb{d}_{i}^{\text{pos}}}\tran \mathbf{U}_{\text{d-d}}^{\text{pos}} \vb{d}_{i}^{\text{pos}} + U_{\text{d}}^{\text{pos}} \vb{d}_{i}^{\text{pos}} + \vb{u}_{\text{bias}}^{\text{pos}}.
+                    &\phantom{\coloneqq}\ + {\vb{d}_{j}^{\text{pos}}}\tran \mathbf{U}_{\text{d-d}}^{\text{pos}} \vb{d}_{j}^{\text{pos}} + U_{\text{d}}^{\text{pos}} \vb{d}_{j}^{\text{pos}} + \vb{u}_{\text{bias}}^{\text{pos}}.
             \end{alignat*}
     \end{itemize}
 

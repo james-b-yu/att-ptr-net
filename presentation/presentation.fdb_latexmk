@@ -1,12 +1,12 @@
 # Fdb version 3
-["biber presentation"] 1704845903 "presentation.bcf" "presentation.bbl" "presentation" 1704845952
+["biber presentation"] 1704845903 "presentation.bcf" "presentation.bbl" "presentation" 1704846875
   "bib.bib" 1704845827 4374 fb76c289db86d4bef6222e5ba40dc911 ""
-  "presentation.bcf" 1704845951 125425 d6655d5363a44d6cd67d78f1c44a6996 "pdflatex"
+  "presentation.bcf" 1704846875 125425 d6655d5363a44d6cd67d78f1c44a6996 "pdflatex"
   (generated)
   "presentation.bbl"
   "presentation.blg"
-["pdflatex"] 1704845947 "/Users/jamesyu/programming/ml/german/presentation/presentation.tex" "presentation.pdf" "presentation" 1704845952
-  "/Users/jamesyu/programming/ml/german/presentation/presentation.tex" 1704845936 43006 2aaf85ed324d8c56f2f934080387e61a ""
+["pdflatex"] 1704846870 "/Users/jamesyu/programming/ml/german/presentation/presentation.tex" "presentation.pdf" "presentation" 1704846875
+  "/Users/jamesyu/programming/ml/german/presentation/presentation.tex" 1704846869 42994 f38e23220e22a7e6fbf311ede3ac363d ""
   "/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/lm/lm-ec.enc" 1254269338 2375 baa924870cfb487815765f9094cf3728 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc" 1202520719 3486 c7eadf5dcc57b3b2d11736679f6636ba ""
   "/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc" 1202520719 2405 5dcf2c1b967ee25cc46c58cd52244aed ""
@@ -24,9 +24,6 @@
   "/usr/local/texlive/2022/texmf-dist/fonts/tfm/public/cm/cmr8.tfm" 1136768653 1292 21c1c5bfeaebccffdb478fd231a0997d ""
   "/usr/local/texlive/2022/texmf-dist/fonts/tfm/public/cm/cmss8.tfm" 1136768653 1296 d77f431d10d47c8ea2cc18cf45346274 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/tfm/public/latex-fonts/lasy6.tfm" 1136768653 520 4889cce2180234b97cad636b6039c722 ""
-  "/usr/local/texlive/2022/texmf-dist/fonts/tfm/public/lm/ec-lmr5.tfm" 1254269338 12020 46464c854bf317de2a7a0bbe4a1160ca ""
-  "/usr/local/texlive/2022/texmf-dist/fonts/tfm/public/lm/ec-lmr6.tfm" 1254269338 12048 c1068d0f4772be9b0ec447692e1d6d82 ""
-  "/usr/local/texlive/2022/texmf-dist/fonts/tfm/public/lm/ec-lmr8.tfm" 1254269338 12064 a35db870f0b76c338d749c56dc030ef5 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/tfm/public/lm/ec-lmri10.tfm" 1254269338 17148 9556e1b5f936b77a796f68d2d559ba99 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/tfm/public/lm/ec-lmri7.tfm" 1254269338 17168 78a37e395d0470967cfda94332b0716a ""
   "/usr/local/texlive/2022/texmf-dist/fonts/tfm/public/lm/ec-lmri8.tfm" 1254269338 17152 c8240fef851c4991afefdae37a539ee1 ""
@@ -57,7 +54,6 @@
   "/usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmmi6.pfb" 1254269338 31113 04b711c9a4c7f8cb4ed784c6fc4cc1c5 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmmi8.pfb" 1254269338 30635 833ec815d446ec453a4913fc26d24cbc ""
   "/usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmmib10.pfb" 1254269338 30962 099bdeb826f0ac8e2d3f42a496d47e5f ""
-  "/usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmr6.pfb" 1255129361 123394 d390152bb30feeb496aaaa93299ee9ba ""
   "/usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmri10.pfb" 1255129361 112593 fda2373ba4420af33949610de4c28fe8 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmri7.pfb" 1255129361 111437 74f3e490d3223b7d4352605020ac7fc2 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmri8.pfb" 1255129361 109952 3dd76c0c5c680d519bb6d59a066c0826 ""
@@ -335,12 +331,12 @@
   "/usr/local/texlive/2022/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1647878959 4410336 7d30a02e9fa9a16d7d1f8d037ba69641 ""
   "/usr/local/texlive/2022/texmf-var/web2c/pdftex/pdflatex.fmt" 1660487500 2826440 7a9e03949a423ea13e011f41ec3cae35 ""
   "/usr/local/texlive/2022/texmf.cnf" 1647878952 577 209b46be99c9075fd74d4c0369380e8c ""
-  "presentation.aux" 1704845951 15470 091fa9606598fe10d5cd2908bf6b4fd0 "pdflatex"
+  "presentation.aux" 1704846875 15470 091fa9606598fe10d5cd2908bf6b4fd0 "pdflatex"
   "presentation.bbl" 1704845905 18236 0a5f8c1ab1fdeb8b6cf3e126942c0046 "biber presentation"
-  "presentation.nav" 1704845951 3006 86f8c91a62a73d7adcda8001e7c38647 "pdflatex"
-  "presentation.out" 1704845951 1455 0a46d34f7e2f1e2e8ded4602f24efb01 "pdflatex"
-  "presentation.run.xml" 1704845951 2542 841e53d7dbca73e2fb1c52ea4ee2c9f0 "pdflatex"
-  "presentation.tex" 1704845936 43006 2aaf85ed324d8c56f2f934080387e61a ""
+  "presentation.nav" 1704846875 3006 86f8c91a62a73d7adcda8001e7c38647 "pdflatex"
+  "presentation.out" 1704846875 1455 0a46d34f7e2f1e2e8ded4602f24efb01 "pdflatex"
+  "presentation.run.xml" 1704846875 2542 841e53d7dbca73e2fb1c52ea4ee2c9f0 "pdflatex"
+  "presentation.tex" 1704846869 42994 f38e23220e22a7e6fbf311ede3ac363d ""
   (generated)
   "presentation.aux"
   "presentation.bcf"
