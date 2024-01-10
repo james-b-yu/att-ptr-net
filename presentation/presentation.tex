@@ -8,6 +8,7 @@
 \usepackage{amssymb}
 \usepackage{amsmath}
 \usepackage{amsthm}
+\usepackage{microtype}
 \usepackage{mathtools}
 \usepackage{etoolbox}
 \usepackage{tabularx}
@@ -123,6 +124,8 @@
 \usetheme{Rochester}
 \usefonttheme{structureitalicserif}
 
+
+
 % \usefonttheme{serif}
 
 % remove indent from itemize
@@ -130,6 +133,8 @@
 \addtolength{\leftmargini}{\labelsep}
 
 \setbeamersize{text margin left=2em,text margin right=2em} 
+
+\setbeamerfont{institute}{size=\normalsize}
 
 % \setbeamerfont{title}{series=\bfseries,parent=structure}
 % \setbeamerfont{frametitle}{series=\bfseries,parent=structure}
@@ -156,11 +161,11 @@
 \subsection{Preliminaries}
 \begin{frame}
     \frametitle{Linguistic preliminaries: constituent trees}
-    Let \(w = \qty(w_{1}, \ldots, w_{N})\) be a sentence.
+    Let \(w = \qty(w_{1}, \ldots, w_{L})\) be a sentence.
 
     \begin{definition}
         \begin{itemize}
-            \item A \textit{constituent tree} is a rooted tree whose leaves are the words \(\qty(w_{i})_{i=1}^{N}\) and internal nodes are constituents satisfying some constraints.
+            \item A \textit{constituent tree} is a rooted tree whose leaves are the words \(\qty(w_{i})_{i=1}^{L}\) and internal nodes are constituents satisfying some constraints.
 
             \item A \textit{constituent} is a triple \(\qty(\tikzmarknode{const-label}{Z}, \tikzmarknode{const-yield}{\mathcal{Y}}, \tikzmarknode{const-head}{h})\) containing, respectively, its label, yield, and lexical head.
             
@@ -257,7 +262,7 @@
     \frametitle{Reduction to dependency parsing}
 
     \begin{definition}
-        A \textit{dependency tree} is a rooted tree spanning the words in the sentence \(\qty(w_{i})_{i=1}^{N}\). Each edge is labelled and connects a \textit{head word} (parent) to a \textit{dependency} (child).
+        A \textit{dependency tree} is a rooted tree spanning the words in the sentence \(\qty(w_{i})_{i=1}^{L}\). Each edge is labelled and connects a \textit{head word} (parent) to a \textit{dependency} (child).
     \end{definition}
 
     \textcite{fernandez2015parsing} show that constituent trees are isomorphic to dependency trees in which the edges contain information about constituent labels and attachment order.
@@ -327,7 +332,7 @@
         \begin{column}[t]{0.6\textwidth}
             \vspace{0pt}
             \begin{itemize}
-                \item Regressor: sentence \(\qty(w_{i})_{i = 1}^{N}\).
+                \item Regressor: sentence \(\qty(w_{i})_{i = 1}^{L}\).
                 \item Regressand: dependency tree, parts of speech and morphology.
                 \item Bottom-up approach: think of \textit{arcs} going from every child \(w_{i}\) to its parent \(y_{i}^{\text{arc}} \in w \setminus w_{i}\).
             \end{itemize}
@@ -375,23 +380,23 @@
         \end{column}
     \end{columns}
 
-    Denote the regressand by \(y = \qty(y_{i})_{i=1}^{N}\) where \(y_{i} = (y_{i}^{\text{arc}}, y_{i}^{\text{lab}}, y_{i}^{\text{ord}}, y_{i}^{\text{pos}}, y_{i}^{\text{morph}})\) and with mild abuse of notation let \(y_{<i} = \qty(y_{1}, \ldots, y_{i})\) for each \(i = 2, \ldots, N\) and \(y_{<1} = 0\).
+    Denote the regressand by \(y = \qty(y_{i})_{i=1}^{L}\) where \(y_{i} = (y_{i}^{\text{arc}}, y_{i}^{\text{lab}}, y_{i}^{\text{ord}}, y_{i}^{\text{pos}}, y_{i}^{\text{morph}})\) and with mild abuse of notation let \(y_{<i} = \qty(y_{1}, \ldots, y_{i})\) for each \(i = 2, \ldots, L\) and \(y_{<1} = 0\).
     
     \begin{assumption}
-        For each \(i = 1, \ldots, N\), the random variables \(y_{i}^{\text{lab}}, y_{i}^{\text{ord}}, y_{i}^{\text{pos}}\) and \(y_{i}^{\text{morph}}\) are mutually independent conditional on \(y_{i}^{\text{arc}}\), \(y_{<i}\) and \(w\).
+        For each \(i = 1, \ldots, L\), the random variables \(y_{i}^{\text{lab}}, y_{i}^{\text{ord}}, y_{i}^{\text{pos}}\) and \(y_{i}^{\text{morph}}\) are mutually independent conditional on \(y_{i}^{\text{arc}}\), \(y_{<i}\) and \(w\).
     \end{assumption}
     We can decompose the conditional probability of \(y\) given \(w\): \\[-1.5em]
     \begin{align*}
-        p_{w}(y) &= \prod_{i=1}^{N} p_{w}(y_{i} \mid y_{<i}) \\[-0.5em]
-        &= \prod_{i=1}^{N} \Big\{ p_{w}(y_{i}^{\text{arc}} \mid y_{<i}) p_{w}(y_{i}^{\text{lab}} \mid y_{i}^{\text{arc}}, y_{<i}) \\[-2.5em]
-        & \phantom{\ = \prod_{i=1}^{N} \Big\{} \cdot p_{w}(y_{i}^{\text{ord}} \mid y_{i}^{\text{arc}}, y_{<i}) p_{w}(y_{i}^{\text{pos}} \mid y_{i}^{\text{arc}}, y_{<i}) p_{w}(y_{i}^{\text{morph}} \mid y_{i}^{\text{arc}}, y_{<i}) \Big\}.
+        p_{w}(y) &= \prod_{i=1}^{L} p_{w}(y_{i} \mid y_{<i}) \\[-0.5em]
+        &= \prod_{i=1}^{L} \Big\{ p_{w}(y_{i}^{\text{arc}} \mid y_{<i}) p_{w}(y_{i}^{\text{lab}} \mid y_{i}^{\text{arc}}, y_{<i}) \\[-2.5em]
+        & \phantom{\ = \prod_{i=1}^{L} \Big\{} \cdot p_{w}(y_{i}^{\text{ord}} \mid y_{i}^{\text{arc}}, y_{<i}) p_{w}(y_{i}^{\text{pos}} \mid y_{i}^{\text{arc}}, y_{<i}) p_{w}(y_{i}^{\text{morph}} \mid y_{i}^{\text{arc}}, y_{<i}) \Big\}.
     \end{align*}
 \end{frame}
 
 \subsection{Encoder-decoder setup}
 \begin{frame}
     \frametitle{Encoder-decoder setup}
-    Given an input sentence \(w = \qty(w_{i})_{i=1}^{N}\) we generate \textit{embeddings} \(\boldsymbol{\omega} = \qty(\boldsymbol{\omega}_{i})_{i=1}^{N}\), where
+    Given an input sentence \(w = \qty(w_{i})_{i=1}^{L}\) we generate \textit{embeddings} \(\boldsymbol{\omega} = \qty(\boldsymbol{\omega}_{i})_{i=1}^{L}\), where
     \[
         \boldsymbol{\omega}_{i} = \mathbf{WordEmbed}(w_{i}) \oplus \mathbf{CharEmbed}(w_{i}) \oplus \mathbf{BertEmbed}(w_{i}).
     \]
@@ -418,7 +423,7 @@
 \subsection{Attention}
 \begin{frame}
     \frametitle{The pointer network: bi-affine attention mechanism}
-    \framesubtitle{Taking inspiration from \textcite{dozat2016deep} and \textcite{vinyals2015pointer}.}
+    \framesubtitle{Drawing on \textcite{dozat2016deep} and \textcite{vinyals2015pointer}.}
     \begin{columns}[t,onlytextwidth]
         \begin{column}[t]{0.52\textwidth}
             \begin{itemize}
@@ -446,7 +451,7 @@
             \]
             \end{itemize}
         \end{column}
-        \begin{column}[t]{0.5\textwidth}
+        \begin{column}[t]{0.48\textwidth}
             \raggedleft\scalebox{0.67}{ \begin{tikzpicture}[baseline=(current bounding box.north east)]
                 \foreach \word / \n / \s in {/0/, Darüber/1/\(w_{1}\), muss/2/\(w_{2}\), nachgedacht/3/\(w_{3}\), werden/4/\(w_{4}\), ./5/\(w_{5}\)}
                 {
@@ -579,11 +584,270 @@
             \]
 \end{frame}
 
+\subsection{Classification}
+\begin{frame}
+    \frametitle{Part-of-speech and morphology: bi-affine classifier}
+    \framesubtitle{Drawing on \textcite{dozat2016deep}.}
+    \begin{columns}[t,onlytextwidth]
+        \begin{column}[t]{0.52\textwidth}
+            \begin{itemize}
+            \item Encoder and decoder are shared across tasks. The remaining network is separately trained.
+            \item Classification via a bi-affine architecture allows modelling of class probabilities conditional on arcs.
+            \end{itemize}
+
+            \textbf{Example:} part-of-speech classification.
+            \[
+                \vb{e}^{\text{pos}} = \mathbf{MLP}_{\text{enc}}^{\text{pos}}(\vb{e}); \quad \vb{d}^{\text{pos}} = \mathbf{MLP}_{\text{dec}}^{\text{pos}}(\vb{d}).
+            \]
+        \end{column}
+        \begin{column}[t]{0.48\textwidth}
+            \raggedleft\scalebox{0.67}{\begin{tikzpicture}[baseline=(current bounding box.north east)]
+                \foreach \word / \n in {\texttt{root}/0, Darüber/1, muss/2, nachgedacht/3, werden/4, ./5}
+                {
+                    \node[overlay,transparent,
+                        shape=rectangle,
+                        inner sep=0pt,
+                        fill=none,
+                        text=black,
+                        anchor=north
+                    ] (wd\n) at (0.7 * \n, 0) {\rotatebox{-90}{\word}};
+                    \node[overlay,transparent,
+                        name=w\n,
+                        above=0.2cm of wd\n,
+                        text depth=0,
+                        text height=1em,
+                        inner sep=0
+                    ] {$w_{\n}$};
+                }
+        
+                \coordinate[above=0.5cm of w0.north west] (embedbl) {};
+                \coordinate[above=1cm of w5.north east] (embedtr) {};
+                \draw[overlay,transparent,semithick] (embedbl) rectangle (embedtr) node [pos=0.5,scale=0.8] {\(\mathbf{WordEmbed} \oplus \mathbf{CharEmbed} \oplus \mathbf{BertEmbed}\)};
+        
+                \foreach \n in {0,1,2,3,4,5}
+                {
+                    \draw[overlay,transparent,-Stealth] (w\n.north) -- (w\n|-embedbl);
+                    \node[
+                        above = 0.5cm of {w\n |-embedtr},
+                        draw,
+                        rectangle,
+                        semithick,
+                        inner sep=0,
+                        minimum width=0.4cm,
+                        minimum height=1cm,
+                        label={[scale=0.8]center:$\vb{e}_{\n}$}
+                    ] (e\n) {};
+                    \draw[overlay,transparent,-Stealth] (w\n |- embedtr) -- (e\n.south);
+                }
+        
+                \foreach \n/\m in {0/1,1/2,2/3,3/4,4/5}
+                {
+                    \draw[-Stealth] ($(e\n.east) + (0, 4pt)$) -- ($(e\m.west) + (0, 4pt)$) {};
+                    \draw[Stealth-] ($(e\n.east) - (0, 4pt)$) -- ($(e\m.west) - (0, 4pt)$) {};
+                }
+        
+                \foreach \n/\j in {0/1,1/2,2/3,3/4,4/5}{
+                    \node[
+                        draw,
+                        rectangle,
+                        semithick,
+                        inner sep=0,
+                        minimum width=0.4cm,
+                        minimum height=1cm,
+                        label={[scale=0.8]center:$\vb{d}_{\j}$}
+                    ] (d\j) at ($(e5) + (1 + 0.7 * \n, 0)$) {};
+                }
+        
+                \draw[-Stealth] (e5) -- (d1);
+        
+                \foreach \n/\m in {1/2,2/3,3/4,4/5}
+                {
+                    \draw[-Stealth] (d\n) -- (d\m) {};
+                }
+                \foreach \word/\j in {Darüber/1,muss/2,nachgedacht/3,werden/4,./5}
+                {
+                    \node[
+                        anchor=north,
+                        text depth=0,
+                        text height=1em,
+                        inner sep=0
+                    ] (ecopy\j) at (d\j |- embedtr.north) {$\vb{e}_{\j}$} edge[-Stealth] (d\j);
+                    \node[overlay,transparent,
+                        shape=rectangle,
+                        inner sep=0pt,
+                        fill=none,
+                        text=black,
+                        anchor=north
+                    ] at (wd\j.north -| ecopy\j) {\rotatebox{-90}{(\word)}};
+                }
+        
+                \foreach \i in {1,2,3,4,5}
+                {
+                    \node[
+                        anchor=north,
+                        text depth=0,
+                        text height=1em,
+                        inner sep=0
+                    ] (omega\i) at (e\i |- embedtr.north) {$\boldsymbol{\omega}_{\i}$} edge[-Stealth] (e\i);
+                }
+        
+                \coordinate[above=0.5cm of e0.north west] (mlpencbl) {};
+                \coordinate[above=0.9cm of e5.north east] (mlpenctr) {};
+                \draw[semithick] (mlpencbl) rectangle (mlpenctr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\mathrm{enc}}^{\mathrm{pos}}\)};
+        
+                \coordinate[above=0.5cm of d1.north west] (mlpdecbl) {};
+                \coordinate[above=0.9cm of d5.north east] (mlpdectr) {};
+                \draw[semithick] (mlpdecbl) rectangle (mlpdectr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\mathrm{dec}}^{\mathrm{pos}}\)};
+        
+                \foreach \i in {0,1,2,3,4,5}
+                {
+                    \draw[-Stealth] (e\i.north) -- (e\i |- mlpencbl);
+                }
+        
+                \coordinate[above=0.5cm of {mlpdecbl |- mlpdectr}] (biafbl) {};
+                \coordinate[above=0.4cm of {biafbl -| mlpdectr}] (biaftr) {};
+                \draw[semithick] (biafbl) rectangle (biaftr) node [pos=0.5,scale=0.8] (biaf) {\(\mathbf{BiAff}^{\mathrm{pos}}\)};
+                \foreach \i in {0,1,2,3,4,5}
+                {
+                    \draw (e\i.north |- mlpenctr) -- (e\i |- biaf);
+                }
+                \draw[-Stealth] (e0.north |- biaf) -- (biaf.west -| biafbl);
+        
+                \foreach \j in {1,2,3,4,5}
+                {
+                    \draw[-Stealth] (d\j.north) -- (d\j |- mlpdecbl);
+                    \draw[-Stealth] (d\j |- mlpdectr) -- (d\j |- biafbl);
+                }
+        
+                \foreach \j in {1,2,3,4,5}
+                {
+                    \coordinate (start\j) at (d\j |- {$(biaftr) + (0, 0.5cm)$});
+                    \foreach \k/\o in {5/0.1,4/0.3,3/0.5,2/0.7,1/0.9}
+                        {
+                            \node[
+                                draw,
+                                draw opacity=\o,
+                                rectangle,
+                                semithick,
+                                inner sep=0,
+                                minimum width=0.6cm,
+                                minimum height=1cm,
+                                anchor=south,
+                                fill=white
+                            ] (hello) at ($(start\j) + (0.02 * \k, 0.045 * \k)$) {};
+                        }
+                    \node[
+                        draw,
+                        anchor=south,
+                        rectangle,
+                        semithick,
+                        inner sep=0,
+                        minimum width=0.6cm,
+                        minimum height=1cm,
+                        fill=white,
+                        label={[scale=0.8]center:$\vb{v}^{\mathrm{pos}}_{:,\j}$},
+                    ] (posclass\j) at (start\j) {} edge[Stealth-] (d\j |- biaftr);
+                }
+            \end{tikzpicture}}
+        \end{column}
+    \end{columns}
+    \begin{itemize}
+        \item Obtain class \textit{logits} \(\vb{v}^{\text{pos}}\):
+            \begin{alignat*}{3}
+                \vb{v}^{\text{pos}}_{i,j} &= \mathbf{BiAff}^{\text{pos}}(\vb{e}^{\text{pos}}_{i}, \vb{d}^{\text{pos}}_{j}) \\
+                &\coloneqq {\vb{e}^{\text{pos}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\text{pos}} \vb{d}_{i}^{\text{pos}} +
+                        {\vb{e}_{i}^{\text{pos}}}\tran \mathbf{U}_{\text{h-h}}^{\text{pos}} \vb{e}_{i}^{\text{pos}} + U_{\text{h}}^{\text{pos}} \vb{e}_{i}^{\text{pos}} \\
+                    &\phantom{\coloneqq}\ + {\vb{d}_{i}^{\text{pos}}}\tran \mathbf{U}_{\text{d-d}}^{\text{pos}} \vb{d}_{i}^{\text{pos}} + U_{\text{d}}^{\text{pos}} \vb{d}_{i}^{\text{pos}} + \vb{u}_{\text{bias}}^{\text{pos}}.
+            \end{alignat*}
+    \end{itemize}
+
+    Fixing child \(w_{j}\), the vector \(\mathbf{softmax}(\vb{v}_{i,j}^{\text{pos}})\) can be interpreted as an estimated probability distribution over its parts-of-speech conditional on having an arc to \(w_{i}\) over potential parents.
+            \[
+                \hat{p}^{\text{pos}}(c \mid w_{i}, y_{<j}, w) = \mathbf{softmax}(\vb{v}^{\text{pos}}_{i,j})_{c}.
+            \]
+\end{frame}
+
+\subsection{Inference and Training}
+\begin{frame}
+    \frametitle{Inference and Training}
+    \setlength{\abovedisplayskip}{0pt}
+\setlength{\belowdisplayskip}{0pt}
+\setlength{\abovedisplayshortskip}{0pt}
+\setlength{\belowdisplayshortskip}{0pt}
+    \begin{block}{Inference}
+        Given \(w=\qty(w_{i})_{i=1}^{L}\), estimate \(y = \qty(y_{i})_{i=1}^{L}\) via \textit{maximum likelihood}:
+        \begin{align*}
+            \hat{y} &= \mathop{\underset{y}{\operatorname{arg\,max}}} \Bigg\{  \prod_{i=1}^{L} \Big\{ \hat{p}_{w}(y_{i}^{\text{arc}} \mid y_{<i}) \hat{p}_{w}(y_{i}^{\text{lab}} \mid y_{i}^{\text{arc}}, y_{<i}) \\[-2.5em]
+            &\phantom{\ = \mathop{\underset{y}{\operatorname{arg\,max}}} \Bigg\{ \prod_{i=1}^{L} \Big\{} \cdot \hat{p}_{w}(y_{i}^{\text{ord}} \mid y_{i}^{\text{arc}}, y_{<i}) \hat{p}_{w}(y_{i}^{\text{pos}} \mid y_{i}^{\text{arc}}, y_{<i}) \hat{p}_{w}(y_{i}^{\text{morph}} \mid y_{i}^{\text{arc}}, y_{<i}) \Big\} \Bigg\}.
+        \end{align*}
+    \end{block}
+
+    The feasible region is very large, so the maximisation is approximated via \textit{beam search}.
+
+    \begin{block}{Training}
+        The training process involves minimising the \textit{cross-entropy} between the estimated distribution \(\hat{p}\) and the empirical distribution present in the dataset \((w^{n}, y^{n})_{n=1}^{N}\).
+        
+        \begin{align*}
+            \mathop{\underset{\hat{p}}{\min}} \Bigg\{ \sum_{n=1}^{N} \log \prod_{i=1}^{L_{n}} \Big\{ & \hat{p}_{w}({y_{i}^{n}}^{\text{arc}} \mid y_{<i}^{n}) \hat{p}_{w}({y_{i}^{n}}^{\text{lab}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \\[-2.25em]
+            & \cdot \hat{p}_{w}({y_{i}^{n}}^{\text{ord}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \hat{p}_{w}({y_{i}^{n}}^{\text{pos}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \hat{p}_{w}({y_{i}^{n}}^{\text{morph}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \Big\} \Bigg\} \\
+            &= \mathop{\underset{ \hat{p}}{\min}} \qty{\text{loss}^{\text{arc}} + \text{loss}^{\text{lab}} + \text{loss}^{\text{ord}} + \text{loss}^{\text{pos}} + \text{loss}^{\text{morph}}}.
+        \end{align*}
+    \end{block}
+
+    This is approximated via \textit{SGD} with \textit{Nesterov momentum}.
+\end{frame}
+
 \section{Data and Results}
+\begin{frame}
+    \frametitle{Performance metrics}
+    The TIGER treebank is a widely-used corpus of \(\sim\!50\,000\) constituency trees. Its main textual basis is the \textit{Frankfurter Rundschau}.
+    \begin{itemize}
+        \item \(97\,\%\) of the dataset is usable as training examples, with train/dev/test split of \(80/10/10\,\%\).
+    \end{itemize}
+
+    \begin{columns}[onlytextwidth]
+        \begin{column}[t]{0.48\textwidth}
+            \begin{table}
+                \begin{tabular}[t]{@{}
+                    >{\arraybackslash}p{(\textwidth - 6.5em)}@{}
+                    >{\centering\arraybackslash}p{3em}@{}
+                    >{\centering\arraybackslash}p{4em}@{}}
+                    \toprule
+                    \textbf{Model (with BERT)} & \textbf{F1} & \textbf{Disc. F1} \\ \midrule
+                    \textls[-70]{F.-González \& G.-Rodríguez (\citeyear{fernandez2022multitask2})} & 89.8 & 71.0 \\
+                    Corro (\citeyear{corro2020span}) & \textbf{90.0} & 62.1 \\
+                    Chen \& Komachi (\citeyear{chen2023discontinuous}) & 89.6 & 70.9 \\
+                    \midrule
+                    \textbf{This work} & 89.5 & \textbf{82.2} \\ \bottomrule
+                \end{tabular}
+
+                \caption{Comparison of overall F1-score and F1-score measured only on discontinuous constituents (Disc. F1), calculated using \texttt{disco-dop} as standard practice}
+            \end{table}
+        \end{column}
+        \begin{column}[t]{0.48\textwidth}
+            \begin{table}
+                \begin{tabular}[t]{@{}
+                    >{\arraybackslash}p{(\textwidth - 7.25em)}@{}
+                    >{\centering\arraybackslash}p{2.3em}@{}
+                    >{\centering\arraybackslash}p{5em}@{}}
+                    \toprule
+                    \textbf{Model} & \textbf{\texttt{pos}} & \textbf{\texttt{morph}} (avr) \\ \midrule
+                    \textcite{kondratyuk2018lemmatag} & 98.58 & 98.97 \\
+                    \textcite{muller2013efficient} & 98.20 & 98.27 \\
+                    \textls[-20]{Schnabel \& Schütze (\citeyear{schnabel2014flors})} & 97.50 & 97.76 \\
+                    \midrule
+                    \textbf{This work} & \textbf{99.16} & \textbf{99.54} \\ \bottomrule
+                \end{tabular}
+
+                \caption{Comparison of part-of-speech (\texttt{pos}) and morphology accuracies (\%). Morphology accuracies are the average of accuracies for \texttt{case}, \texttt{degree}, \texttt{gender}, \texttt{mood}, \texttt{number}, \texttt{person} and \texttt{tense}.}
+            \end{table}
+        \end{column}
+    \end{columns}
+\end{frame}
 \section{Appendix}
 
 \begin{frame}
-    \frametitle{Bibliography}
+    \frametitle{Bibliography}[allowframebreaks]
     \printbibliography
 \end{frame}
 \end{document}

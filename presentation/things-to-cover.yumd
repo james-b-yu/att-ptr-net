@@ -38,3 +38,9 @@ all the mlps have nonlinearities!202ß
 skip-gram with nega- tive sampling model  (word2vec)
 
 make a slide justifying why your method now spans the entire **biaffine space**
+
+what does disc f1 mean???
+
+Daniel Kondratyuk, Tomás Gavenciak, Milan Straka, and Jan Hajic
+(2018), LemmaTag: Jointly tagging and lemmatizing for morphologically-rich
+languages with BRNNs

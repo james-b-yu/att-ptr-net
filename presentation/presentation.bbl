@@ -73,6 +73,44 @@
       \verb https://huggingface.co/bert-base-german-cased
       \endverb
     \endentry
+    \entry{chen2023discontinuous}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=ab4052ea7f9b61e0e4018ecb591983dd}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Zhousi},
+           giveni={Z\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=4af255ddddb5af27b40314ab6bc1fe96}{%
+           family={Komachi},
+           familyi={K\bibinitperiod},
+           given={Mamoru},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {MIT Press}%
+      }
+      \strng{namehash}{d432ffc7d613cab267e3a96f0b5750d4}
+      \strng{fullhash}{d432ffc7d613cab267e3a96f0b5750d4}
+      \strng{bibnamehash}{d432ffc7d613cab267e3a96f0b5750d4}
+      \strng{authorbibnamehash}{d432ffc7d613cab267e3a96f0b5750d4}
+      \strng{authornamehash}{d432ffc7d613cab267e3a96f0b5750d4}
+      \strng{authorfullhash}{d432ffc7d613cab267e3a96f0b5750d4}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transactions of the Association for Computational Linguistics}
+      \field{title}{Discontinuous Combinatory Constituency Parsing}
+      \field{volume}{11}
+      \field{year}{2023}
+      \field{pages}{267\bibrangedash 283}
+      \range{pages}{17}
+    \endentry
     \entry{chiu2016named}{article}{}
       \name{author}{2}{}{%
         {{un=0,uniquepart=base,hash=16539f5fea91a36b3ed01c5e69793473}{%
@@ -111,6 +149,32 @@
       \field{pages}{357\bibrangedash 370}
       \range{pages}{14}
     \endentry
+    \entry{corro2020span}{article}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=4b9b42906b31f928adcfe4d79e9bf689}{%
+           family={Corro},
+           familyi={C\bibinitperiod},
+           given={Caio},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{4b9b42906b31f928adcfe4d79e9bf689}
+      \strng{fullhash}{4b9b42906b31f928adcfe4d79e9bf689}
+      \strng{bibnamehash}{4b9b42906b31f928adcfe4d79e9bf689}
+      \strng{authorbibnamehash}{4b9b42906b31f928adcfe4d79e9bf689}
+      \strng{authornamehash}{4b9b42906b31f928adcfe4d79e9bf689}
+      \strng{authorfullhash}{4b9b42906b31f928adcfe4d79e9bf689}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Empirical Methods in Natural Language Processing}
+      \field{title}{Span-based discontinuous constituency parsing: a family of exact chart-based algorithms with time complexities from O (n\^{} 6) down to O (n\^{} 3)}
+      \field{year}{2020}
+    \endentry
     \entry{dozat2016deep}{article}{}
       \name{author}{2}{}{%
         {{un=0,uniquepart=base,hash=d1d28f03da75cca98fac1800aec56dbb}{%
@@ -142,6 +206,44 @@
       \field{journaltitle}{International Conference on Learning Representations}
       \field{title}{Deep Biaffine Attention for Neural Dependency Parsing}
       \field{year}{2016}
+    \endentry
+    \entry{fernandez2022multitask2}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=1034c9c0a75375015adeb2d99a01a7aa}{%
+           family={Fernández-González},
+           familyi={F\bibinithyphendelim G\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=de75b984e6872e306498b402de89c5dd}{%
+           family={Gómez-Rodriguez},
+           familyi={G\bibinithyphendelim R\bibinitperiod},
+           given={Carlos},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{8511831d5fa918fece481d17c4d815cb}
+      \strng{fullhash}{8511831d5fa918fece481d17c4d815cb}
+      \strng{bibnamehash}{8511831d5fa918fece481d17c4d815cb}
+      \strng{authorbibnamehash}{8511831d5fa918fece481d17c4d815cb}
+      \strng{authornamehash}{8511831d5fa918fece481d17c4d815cb}
+      \strng{authorfullhash}{8511831d5fa918fece481d17c4d815cb}
+      \field{sortinit}{F}
+      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Knowledge-Based Systems}
+      \field{title}{Multitask pointer network for multi-representational parsing}
+      \field{volume}{236}
+      \field{year}{2022}
+      \field{pages}{107760}
+      \range{pages}{1}
     \endentry
     \entry{fernandez2015parsing}{article}{}
       \name{author}{2}{}{%
@@ -176,6 +278,128 @@
       \field{year}{2015}
       \field{pages}{1523\bibrangedash 1533}
       \range{pages}{11}
+    \endentry
+    \entry{kondratyuk2018lemmatag}{article}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=f26749084d8f24322723ed14f4343fa3}{%
+           family={Kondratyuk},
+           familyi={K\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=763000f428c9dff0f8f53c70d25c8e31}{%
+           family={Gavenčiak},
+           familyi={G\bibinitperiod},
+           given={Tomáš},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d709af6997b3ea76ee9b027f6dda0b00}{%
+           family={Straka},
+           familyi={S\bibinitperiod},
+           given={Milan},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bf8ce49dbc8185f7f3b7188465c822a7}{%
+           family={Hajič},
+           familyi={H\bibinitperiod},
+           given={Jan},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{a4fcab5c5e4827423b7c8523c6bb80c6}
+      \strng{fullhash}{72ca09b4195d5b2133a11f7e570e6038}
+      \strng{bibnamehash}{72ca09b4195d5b2133a11f7e570e6038}
+      \strng{authorbibnamehash}{72ca09b4195d5b2133a11f7e570e6038}
+      \strng{authornamehash}{a4fcab5c5e4827423b7c8523c6bb80c6}
+      \strng{authorfullhash}{72ca09b4195d5b2133a11f7e570e6038}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{arXiv preprint arXiv:1808.03703}
+      \field{title}{Lemmatag: jointly tagging and lemmatizing for morphologically-rich languages with BRNNs}
+      \field{year}{2018}
+    \endentry
+    \entry{muller2013efficient}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=c2ad285eb682bccdfe2685694db2188f}{%
+           family={Müller},
+           familyi={M\bibinitperiod},
+           given={Thomas},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=69b276056a5f6ac48835b47af0b8713e}{%
+           family={Schmid},
+           familyi={S\bibinitperiod},
+           given={Helmut},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9a80de0e5ec6df57363aaf321a5d05be}{%
+           family={Schütze},
+           familyi={S\bibinitperiod},
+           given={Hinrich},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{ac68b03d9bae4f1b128311bafa44418d}
+      \strng{fullhash}{011a83bbcd0d0feb88ff2cb0ba1ce9e8}
+      \strng{bibnamehash}{011a83bbcd0d0feb88ff2cb0ba1ce9e8}
+      \strng{authorbibnamehash}{011a83bbcd0d0feb88ff2cb0ba1ce9e8}
+      \strng{authornamehash}{ac68b03d9bae4f1b128311bafa44418d}
+      \strng{authorfullhash}{011a83bbcd0d0feb88ff2cb0ba1ce9e8}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Proceedings of the 2013 conference on empirical methods in natural language processing}
+      \field{title}{Efficient higher-order CRFs for morphological tagging}
+      \field{year}{2013}
+      \field{pages}{322\bibrangedash 332}
+      \range{pages}{11}
+    \endentry
+    \entry{schnabel2014flors}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=73e823955ee5c9194126b4598743a619}{%
+           family={Schnabel},
+           familyi={S\bibinitperiod},
+           given={Tobias},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9a80de0e5ec6df57363aaf321a5d05be}{%
+           family={Schütze},
+           familyi={S\bibinitperiod},
+           given={Hinrich},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {MIT Press One Rogers Street, Cambridge, MA 02142-1209, USA journals-info~…}%
+      }
+      \strng{namehash}{c7dbb0174159354f69ada8d62547f82a}
+      \strng{fullhash}{c7dbb0174159354f69ada8d62547f82a}
+      \strng{bibnamehash}{c7dbb0174159354f69ada8d62547f82a}
+      \strng{authorbibnamehash}{c7dbb0174159354f69ada8d62547f82a}
+      \strng{authornamehash}{c7dbb0174159354f69ada8d62547f82a}
+      \strng{authorfullhash}{c7dbb0174159354f69ada8d62547f82a}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transactions of the Association for Computational Linguistics}
+      \field{title}{{FLORS}: Fast and simple domain adaptation for part-of-speech tagging}
+      \field{volume}{2}
+      \field{year}{2014}
+      \field{pages}{15\bibrangedash 26}
+      \range{pages}{12}
     \endentry
     \entry{vinyals2015pointer}{article}{}
       \name{author}{3}{}{%

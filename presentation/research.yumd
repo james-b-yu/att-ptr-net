@@ -15,3 +15,50 @@ MLPs are applied to recurrent states has the benefit of stripping away informati
 Biaffine: prior probability, *likelihood* of label given just word i (how probable a word is to take a particular label), likelihood of a label given just parent (how probable a word is to take dependents with a particular label), and likelihood of a label given both word and its parent (how probable a word is to take a particular label given parent)
 
 Problem: higher power so must also increase regularisation. Need more dropout in recurrent and MLP layers and input. Dropout 33%.
+
+# Results
+
++ + Model
+  + Type
+  + F1
+  + Disc. F1
++ + FG22
+  + Multitask
+  + 89.90
+  + 71.00
++ + Corro
+  + Chart
+  + 90.00
+  + 62.10
++ + Chen and Komachi
+  + Combinator
+  + 89.60
+  + 70.90
++ + **This work**
+  + Multitask
+  + 89.58
+  + 82.16
++ + hi
+
+Another table:
++ + **Model**
+  + **Type**
+  + **`pos`**
+  + **`morph` (avr)**
++ + LemmaTag
+  + Neural
+  + 98.58
+  + 98.97
++ + MarMoT+Emb+Lex
+  + 
+  + 98.20
+  + 98.27
++ + FLORS+Wiki
+  + 
+  + 97.50
+  + 97.76
++ + **This work**
+  + Multitask
+  + 99.16
+  + 99.54
++ + hi
