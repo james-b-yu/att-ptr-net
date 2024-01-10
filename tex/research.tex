@@ -1,0 +1,285 @@
+
+\documentclass{report}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern} % must be loaded with fontenc --- otherwise text will become bitmaps
+\usepackage[british]{babel}
+\usepackage{csquotes} % will automatically use quotes of the babel language
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{etoolbox}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{color}
+\usepackage[normalem]{ulem}
+\usepackage[style=apa]{biblatex} % verbose or apa depending on cite style
+\usepackage{xcolor}
+\usepackage[
+    colorlinks,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+]{hyperref}
+\usepackage[capitalize]{cleveref} % use capitalization so that we do not need to worry about detecting beginnings of sentences, etc
+\usepackage{import}
+\usepackage[useregional]{datetime2}
+\usepackage{titlesec}
+\usepackage{physics}
+\usepackage{float} % for H option in table
+\usepackage{parskip} % remove indentation on new paragraphs
+\usepackage{caption}
+\usepackage[export]{adjustbox} % allow max width
+\usepackage{graphbox} % allow align=t in \includegraphics to make them work better in minipages if first item
+
+\MakeOuterQuote{"}
+
+\titleformat{\chapter}[display]{}{}{0pt}{\raggedright\normalfont\bfseries\huge\thechapter\hspace*{1em}}[] % for chapters created from metadata blocks
+\titleformat{name=\chapter,numberless}[display]{}{}{0pt}{\raggedright\normalfont\bfseries\huge\phantom{\thechapter}\hspace*{1em}}[] % for unnumbered chapters, including the table of contents
+\titlespacing{\chapter}{0pt}{2em}{1em}
+
+\lstset{
+	backgroundcolor=\color[rgb]{1,1,1},
+	tabsize=4,
+	rulecolor=,
+	basicstyle=\ttfamily,
+	upquote=true,
+	aboveskip={1.5\baselineskip},
+	columns=fixed,
+	showstringspaces=false,
+	extendedchars=true,
+	breaklines=true,
+	prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+	showtabs=false,
+	showspaces=false,
+	showstringspaces=false,
+	identifierstyle=\ttfamily,
+	keywordstyle=\color[rgb]{0,0,1},
+	commentstyle=\color[rgb]{0.133,0.545,0.133},
+	stringstyle=\color[rgb]{0.627,0.126,0.941},
+	aboveskip=0pt,
+	literate={£}{{\textsterling{}}}1 % allow £ sign within listings
+}
+
+\newcommand{\noncolouredtableofcontents}{
+	\begingroup
+	\hypersetup{hidelinks}
+	\tableofcontents
+	\endgroup
+}
+
+\ifcsundef{thematicbreak}{\newcommand{\thematicbreak}{\par\bigskip\noindent\hrulefill\par\bigskip}}{}
+
+\theoremstyle{definition}
+\ifcsundef{definition}{\newtheorem{definition}{Definition}[section]}{}
+
+\theoremstyle{plain}
+\ifcsundef{theorem}{\newtheorem{theorem}{Theorem}[section]}{}
+\ifcsundef{lemma}{\newtheorem{lemma}[theorem]{Lemma}}{}
+\ifcsundef{corollary}{\newtheorem{corollary}{Corollary}[theorem]}{}
+
+\theoremstyle{definition}
+\ifcsundef{definition}{\newtheorem{definition}{Definition}[section]}{}
+\ifcsundef{example}{\newtheorem{example}{Example}[section]}{}
+
+\theoremstyle{remark}
+\ifcsundef{assumption}{\newtheorem*{assumption}{Assumption}}{}
+\ifcsundef{proof}{\newtheorem*{proof}{Proof}}{}
+\ifcsundef{exercise}{\newtheorem{exercise}{Exercise}[section]}{}
+\ifcsundef{problem}{\newtheorem{problem}{Problem}[section]}{}
+\ifcsundef{question}{\newtheorem{question}{Question}[section]}{}
+\ifcsundef{tip}{\newtheorem*{tip}{Tip}}{}
+\ifcsundef{solution}{\newtheorem*{solution}{Solution}}{}
+\ifcsundef{note}{\newtheorem{note}{Note}[section]}{}
+\ifcsundef{derivation}{\newtheorem{derivation}{Derivation}[section]}{}
+\ifcsundef{axiom}{\newtheorem{axiom}{Axiom}[section]}{}
+\ifcsundef{conjecture}{\newtheorem{conjecture}{Conjecture}[section]}{}
+\ifcsundef{hypothesis}{\newtheorem{hypothesis}{Hypothesis}[section]}{}
+\ifcsundef{proposition}{\newtheorem{proposition}{Proposition}[section]}{}
+
+\ifcsundef{remark}{\newtheorem*{remark}{Remark}}{} % notes are numbered but remarks are not
+
+\renewcommand{\qedsymbol}{$\blacksquare$} % closed black square for proof environments
+
+\renewcommand\thesection{\arabic{section}}
+
+\numberwithin{equation}{section}
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+  
+% fix parskip within minipage
+\setlength{\parskip}{\medskipamount}
+\makeatletter
+\newcommand{\@minipagerestore}{\setlength{\parskip}{\medskipamount}}
+\makeatother
+
+
+\begin{document}
+
+\setcounter{secnumdepth}{3}
+
+Application 1: open domain information extraction (extracting structured data from unstructured data, e.g. relational triples (subject, relation, object))
+
+\textbf{Angeli et al (2015)} use a d-{}parser to find clauses. It then applies natural logic to validate deletions and produce subclauses useful for downstream applications.
+
+Natural logic as a formalism captures common logical inferences appealing directly to the form of language, rather than parsing to a spe-{} cialized logical syntax. E.g. \enquote{all} induces downward polarity; \enquote{some} induces upward polarity. \enquote{All rabbits eat vegetables}
+
+Application 2: embeddings
+
+Levy and Goldbertg (2014) find that dependency-{}based embeddings can better capture semantic and synctactic similarities between words.
+
+\subsection{Dozat and Manning}
+
+MLPs are applied to recurrent states has the benefit of stripping away information not relevant to the current task (the top level must include information necessary to perform all tasks; keeping it in slows down the network and risks overfitting)
+
+Biaffine: prior probability, \emph{likelihood} of label given just word i (how probable a word is to take a particular label), likelihood of a label given just parent (how probable a word is to take dependents with a particular label), and likelihood of a label given both word and its parent (how probable a word is to take a particular label given parent)
+
+Problem: higher power so must also increase regularisation. Need more dropout in recurrent and MLP layers and input. Dropout 33\%.
+
+\section{Results}
+
+\begin{table}[H]\centering
+	\begin{tabular}[t]{@{}
+			>{\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.25}}
+			>{\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.25}}
+			>{\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.25}}
+			>{\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.25}}		
+@{}}\toprule\begin{minipage}[t]{\linewidth}\raggedright
+
+		Model
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		Type
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		F1
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		Disc. F1
+		\end{minipage}\\\midrule\begin{minipage}[t]{\linewidth}\raggedright
+
+		FG22
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		Multitask
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		89.90
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		71.00
+		\end{minipage}\\\midrule\begin{minipage}[t]{\linewidth}\raggedright
+
+		Corro
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		Chart
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		90.00
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		62.10
+		\end{minipage}\\\midrule\begin{minipage}[t]{\linewidth}\raggedright
+
+		Chen and Komachi
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		Combinator
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		89.60
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		70.90
+		\end{minipage}\\\midrule\begin{minipage}[t]{\linewidth}\raggedright
+
+		\textbf{This work}
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		Multitask
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		89.58
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		82.16
+		\end{minipage}\\\bottomrule	\end{tabular}
+	\caption{hi}
+\end{table}
+
+Another table:
+
+\begin{table}[H]\centering
+	\begin{tabular}[t]{@{}
+			>{\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.25}}
+			>{\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.25}}
+			>{\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.25}}
+			>{\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.25}}		
+@{}}\toprule\begin{minipage}[t]{\linewidth}\centering
+
+		\textbf{Model}
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\centering
+
+		\textbf{Type}
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\centering
+
+		\textbf{\texttt{pos}}
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\centering
+
+		\textbf{\texttt{morph} (avr)}
+		\end{minipage}\\\midrule\begin{minipage}[t]{\linewidth}\raggedright
+
+		LemmaTag
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		Neural
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		98.58
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		98.97
+		\end{minipage}\\\midrule\begin{minipage}[t]{\linewidth}\raggedright
+
+		MarMoT+Emb+Lex
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		98.20
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		98.27
+		\end{minipage}\\\midrule\begin{minipage}[t]{\linewidth}\raggedright
+
+		FLORS+Wiki
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		97.50
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		97.76
+		\end{minipage}\\\midrule\begin{minipage}[t]{\linewidth}\raggedright
+
+		\textbf{This work}
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		Multitask
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		99.16
+		\end{minipage} & \begin{minipage}[t]{\linewidth}\raggedright
+
+		99.54
+		\end{minipage}\\\bottomrule	\end{tabular}
+	\caption{hi}
+\end{table}
+
+
+\end{document}
