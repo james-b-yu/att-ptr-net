@@ -1,17 +1,17 @@
 [0] Config.pm:307> INFO - This is Biber 2.17
 [0] Config.pm:310> INFO - Logfile is 'presentation.blg'
-[84] biber-darwin:340> INFO - === Tue Jan  9, 2024, 23:54:06
-[101] Biber.pm:418> INFO - Reading 'presentation.bcf'
-[225] Biber.pm:972> INFO - Found 11 citekeys in bib section 0
-[243] Biber.pm:4383> INFO - Processing section 0
-[254] Biber.pm:4574> INFO - Looking for bibtex file 'bib.bib' for section 0
-[255] bibtex.pm:1713> INFO - LaTeX decoding ...
-[270] bibtex.pm:1518> INFO - Found BibTeX data source 'bib.bib'
-[375] UCollate.pm:68> INFO - Overriding locale 'en-GB' defaults 'normalization = NFD' with 'normalization = prenormalized'
-[375] UCollate.pm:68> INFO - Overriding locale 'en-GB' defaults 'variable = shifted' with 'variable = non-ignorable'
-[375] Biber.pm:4203> INFO - Sorting list 'apa/global//global/global' of type 'entry' with template 'apa' and locale 'en-GB'
-[375] Biber.pm:4209> INFO - No sort tailoring available for locale 'en-GB'
-[393] bbl.pm:654> INFO - Writing 'presentation.bbl' with encoding 'UTF-8'
-[399] bbl.pm:757> INFO - Output to presentation.bbl
-[400] Biber.pm:130> WARN - Duplicate entry key: 'chiu2016named' in file 'bib.bib', skipping ...
-[400] Biber.pm:132> INFO - WARNINGS: 1
+[81] biber-darwin:340> INFO - === Wed Jan 10, 2024, 00:18:24
+[99] Biber.pm:418> INFO - Reading 'presentation.bcf'
+[222] Biber.pm:972> INFO - Found 11 citekeys in bib section 0
+[239] Biber.pm:4383> INFO - Processing section 0
+[250] Biber.pm:4574> INFO - Looking for bibtex file 'bib.bib' for section 0
+[252] bibtex.pm:1713> INFO - LaTeX decoding ...
+[267] bibtex.pm:1518> INFO - Found BibTeX data source 'bib.bib'
+[372] UCollate.pm:68> INFO - Overriding locale 'en-GB' defaults 'variable = shifted' with 'variable = non-ignorable'
+[372] UCollate.pm:68> INFO - Overriding locale 'en-GB' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[372] Biber.pm:4203> INFO - Sorting list 'apa/global//global/global' of type 'entry' with template 'apa' and locale 'en-GB'
+[372] Biber.pm:4209> INFO - No sort tailoring available for locale 'en-GB'
+[390] bbl.pm:654> INFO - Writing 'presentation.bbl' with encoding 'UTF-8'
+[397] bbl.pm:757> INFO - Output to presentation.bbl
+[397] Biber.pm:130> WARN - Duplicate entry key: 'chiu2016named' in file 'bib.bib', skipping ...
+[397] Biber.pm:132> INFO - WARNINGS: 1
