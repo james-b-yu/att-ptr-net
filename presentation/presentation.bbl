@@ -207,6 +207,46 @@
       \field{title}{Deep Biaffine Attention for Neural Dependency Parsing}
       \field{year}{2016}
     \endentry
+    \entry{eger2016lemmatization}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=fa4a8f2209aafcafe807835e7d616b7b}{%
+           family={Eger},
+           familyi={E\bibinitperiod},
+           given={Steffen},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=823293d0e72b0e633e6d544e93e9521c}{%
+           family={Gleim},
+           familyi={G\bibinitperiod},
+           given={Rüdiger},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=68f914358faa4cd8d65fa016e18be344}{%
+           family={Mehler},
+           familyi={M\bibinitperiod},
+           given={Alexander},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{9559f6cd8b2cc21a1576886837117405}
+      \strng{fullhash}{604eaeb80779282df16eff4513cbd4ea}
+      \strng{bibnamehash}{604eaeb80779282df16eff4513cbd4ea}
+      \strng{authorbibnamehash}{604eaeb80779282df16eff4513cbd4ea}
+      \strng{authornamehash}{9559f6cd8b2cc21a1576886837117405}
+      \strng{authorfullhash}{604eaeb80779282df16eff4513cbd4ea}
+      \field{sortinit}{E}
+      \field{sortinithash}{8da8a182d344d5b9047633dfc0cc9131}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Proceedings of the Tenth International Conference on Language Resources and Evaluation (LREC'16)}
+      \field{title}{Lemmatization and morphological tagging in German and Latin: A comparison and a survey of the state-of-the-art}
+      \field{year}{2016}
+      \field{pages}{1507\bibrangedash 1513}
+      \range{pages}{7}
+    \endentry
     \entry{fernandez2022multitask2}{article}{}
       \name{author}{2}{}{%
         {{un=0,uniquepart=base,hash=1034c9c0a75375015adeb2d99a01a7aa}{%
@@ -278,6 +318,84 @@
       \field{year}{2015}
       \field{pages}{1523\bibrangedash 1533}
       \range{pages}{11}
+    \endentry
+    \entry{gleim2019practitioner}{article}{}
+      \name{author}{9}{}{%
+        {{un=0,uniquepart=base,hash=823293d0e72b0e633e6d544e93e9521c}{%
+           family={Gleim},
+           familyi={G\bibinitperiod},
+           given={Rüdiger},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=fa4a8f2209aafcafe807835e7d616b7b}{%
+           family={Eger},
+           familyi={E\bibinitperiod},
+           given={Steffen},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=68f914358faa4cd8d65fa016e18be344}{%
+           family={Mehler},
+           familyi={M\bibinitperiod},
+           given={Alexander},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=df397fd25e93cd0639f99d117f3441e1}{%
+           family={Uslu},
+           familyi={U\bibinitperiod},
+           given={Tolga},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=494d6484cf74d907ca65e7b2027f0131}{%
+           family={Hemati},
+           familyi={H\bibinitperiod},
+           given={Wahed},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7f025b02827fb519bdfbc78d1fa3c14a}{%
+           family={Lücking},
+           familyi={L\bibinitperiod},
+           given={Andy},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2d0e7fc98ba396fa9fef72c3346a243c}{%
+           family={Henlein},
+           familyi={H\bibinitperiod},
+           given={Alexander},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=718ecdb4f53c8916c93adc6114e05642}{%
+           family={Kahlsdorf},
+           familyi={K\bibinitperiod},
+           given={Sven},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5709c978ba22a34a8ac303da7b1fca52}{%
+           family={Hoenen},
+           familyi={H\bibinitperiod},
+           given={Armin},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{d986956c2e7b46636a32889757a27e12}
+      \strng{fullhash}{a9b326e0280fe47dfe61b5bca415c833}
+      \strng{bibnamehash}{a9b326e0280fe47dfe61b5bca415c833}
+      \strng{authorbibnamehash}{a9b326e0280fe47dfe61b5bca415c833}
+      \strng{authornamehash}{d986956c2e7b46636a32889757a27e12}
+      \strng{authorfullhash}{a9b326e0280fe47dfe61b5bca415c833}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Language Modelling}
+      \field{number}{1}
+      \field{title}{A practitioner's view: a survey and comparison of lemmatization and morphological tagging in German and Latin}
+      \field{volume}{7}
+      \field{year}{2019}
+      \field{pages}{1\bibrangedash 52}
+      \range{pages}{52}
     \endentry
     \entry{kondratyuk2018lemmatag}{article}{}
       \name{author}{4}{}{%
@@ -400,6 +518,51 @@
       \field{year}{2014}
       \field{pages}{15\bibrangedash 26}
       \range{pages}{12}
+    \endentry
+    \entry{van2016data}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=f5b166bf25eb17d630840efc94d7148d}{%
+           family={Van\bibnamedelima Cranenburgh},
+           familyi={V\bibinitperiod\bibinitdelim C\bibinitperiod},
+           given={Andreas},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8bfddffffeb43216c24c5d8579554613}{%
+           family={Scha},
+           familyi={S\bibinitperiod},
+           given={Remko},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=cf6a4ffac9b65bcdddd3c4796403f524}{%
+           family={Bod},
+           familyi={B\bibinitperiod},
+           given={Rens},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Journal of Language Modelling}%
+      }
+      \strng{namehash}{e84ba5ba48c865e58ebbc71f675f70fc}
+      \strng{fullhash}{dc4f1ace8a17c3d290c018e238252674}
+      \strng{bibnamehash}{dc4f1ace8a17c3d290c018e238252674}
+      \strng{authorbibnamehash}{dc4f1ace8a17c3d290c018e238252674}
+      \strng{authornamehash}{e84ba5ba48c865e58ebbc71f675f70fc}
+      \strng{authorfullhash}{dc4f1ace8a17c3d290c018e238252674}
+      \field{sortinit}{V}
+      \field{sortinithash}{afb52128e5b4dc4b843768c0113d673b}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Language Modelling}
+      \field{number}{1}
+      \field{title}{Data-oriented parsing with discontinuous constituents and function tags}
+      \field{volume}{4}
+      \field{year}{2016}
+      \field{pages}{57\bibrangedash 111}
+      \range{pages}{55}
     \endentry
     \entry{vinyals2015pointer}{article}{}
       \name{author}{3}{}{%

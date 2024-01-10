@@ -2806,22 +2806,29 @@
     <bcf:citekey order="13">fernandez2022multitask2</bcf:citekey>
     <bcf:citekey order="14">corro2020span</bcf:citekey>
     <bcf:citekey order="15">chen2023discontinuous</bcf:citekey>
-    <bcf:citekey order="16">kondratyuk2018lemmatag</bcf:citekey>
-    <bcf:citekey order="17">kondratyuk2018lemmatag</bcf:citekey>
-    <bcf:citekey order="18">muller2013efficient</bcf:citekey>
-    <bcf:citekey order="19">muller2013efficient</bcf:citekey>
-    <bcf:citekey order="20">schnabel2014flors</bcf:citekey>
-    <bcf:citekey order="21">fernandez2015parsing</bcf:citekey>
-    <bcf:citekey order="22">chiu2016named</bcf:citekey>
-    <bcf:citekey order="23">bert-base-german-cased</bcf:citekey>
-    <bcf:citekey order="24">dozat2016deep</bcf:citekey>
-    <bcf:citekey order="25">vinyals2015pointer</bcf:citekey>
-    <bcf:citekey order="26">fernandez2022multitask2</bcf:citekey>
-    <bcf:citekey order="27">corro2020span</bcf:citekey>
-    <bcf:citekey order="28">chen2023discontinuous</bcf:citekey>
-    <bcf:citekey order="29">kondratyuk2018lemmatag</bcf:citekey>
-    <bcf:citekey order="30">muller2013efficient</bcf:citekey>
-    <bcf:citekey order="31">schnabel2014flors</bcf:citekey>
+    <bcf:citekey order="16">van2016data</bcf:citekey>
+    <bcf:citekey order="17">van2016data</bcf:citekey>
+    <bcf:citekey order="18">kondratyuk2018lemmatag</bcf:citekey>
+    <bcf:citekey order="19">kondratyuk2018lemmatag</bcf:citekey>
+    <bcf:citekey order="20">muller2013efficient</bcf:citekey>
+    <bcf:citekey order="21">muller2013efficient</bcf:citekey>
+    <bcf:citekey order="22">schnabel2014flors</bcf:citekey>
+    <bcf:citekey order="23" nocite="1">gleim2019practitioner</bcf:citekey>
+    <bcf:citekey order="24" nocite="1">eger2016lemmatization</bcf:citekey>
+    <bcf:citekey order="25">fernandez2015parsing</bcf:citekey>
+    <bcf:citekey order="26">chiu2016named</bcf:citekey>
+    <bcf:citekey order="27">bert-base-german-cased</bcf:citekey>
+    <bcf:citekey order="28">dozat2016deep</bcf:citekey>
+    <bcf:citekey order="29">vinyals2015pointer</bcf:citekey>
+    <bcf:citekey order="30">fernandez2022multitask2</bcf:citekey>
+    <bcf:citekey order="31">corro2020span</bcf:citekey>
+    <bcf:citekey order="32">chen2023discontinuous</bcf:citekey>
+    <bcf:citekey order="33">van2016data</bcf:citekey>
+    <bcf:citekey order="34">kondratyuk2018lemmatag</bcf:citekey>
+    <bcf:citekey order="35">muller2013efficient</bcf:citekey>
+    <bcf:citekey order="36">schnabel2014flors</bcf:citekey>
+    <bcf:citekey order="37">gleim2019practitioner</bcf:citekey>
+    <bcf:citekey order="38">eger2016lemmatization</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="apa">

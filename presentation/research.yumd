@@ -16,49 +16,106 @@ Biaffine: prior probability, *likelihood* of label given just word i (how probab
 
 Problem: higher power so must also increase regularisation. Need more dropout in recurrent and MLP layers and input. Dropout 33%.
 
-# Results
+## Fernandez-Gonzalez and Gomez-Rodriguez (2020)
 
-+ + Model
-  + Type
-  + F1
-  + Disc. F1
-+ + FG22
-  + Multitask
-  + 89.90
-  + 71.00
-+ + Corro
-  + Chart
-  + 90.00
-  + 62.10
-+ + Chen and Komachi
-  + Combinator
-  + 89.60
-  + 70.90
-+ + **This work**
-  + Multitask
-  + 89.58
-  + 82.16
-+ + hi
+The pointer network is a type of sequence-to-sequence model.
 
-Another table:
-+ + **Model**
-  + **Type**
-  + **`pos`**
-  + **`morph` (avr)**
-+ + LemmaTag
-  + Neural
-  + 98.58
-  + 98.97
-+ + MarMoT+Emb+Lex
-  + 
-  + 98.20
-  + 98.27
-+ + FLORS+Wiki
-  + 
-  + 97.50
-  + 97.76
-+ + **This work**
-  + Multitask
-  + 99.16
-  + 99.54
-+ + hi
+Constituenct representation of grammar describes syntax of a sentence in terms of constituents or phrases and the heirarchical order betwene them. *Discontinuous* constituent trees extend regular constituent trees by allowing for representation of crossing branches and constituents with gaps.
+
+This is crucial for describing grammatical structures found in free-order languages such as German.
+
+Context-free grammars are not enough for deriving discontinuous structures. To represent these discontinunious structures provide and (thus to capture these more complex linguistic phenomena), more expressive formalisms are required, such as *Linear context-free rewriting systems* (LCFRS).
+- parsers based on probablistic LCFRS are not practical in terms of accuracy 
+- research has been active in tackling discontinuous constituent parsing with complex grammar, and/or neural network-based approaches.
+
+## Pointer Networks
+A variation on standard sequence-to-sequence models.
+
+Use pointers to select positions from the input sequence, creating dependency arcs. It learns the conditional probabi
+
+
+# BERT and transformers
+Bidirectional encoder representations from transformers.
+
+Language model based on an *encoder-only* transformer architecture.
+
+1. Embedding (one-hot encoded token -> vector)
+2. stack of encoders (transformers)
+3. un-embedding (final representtaion back into one-hot encoded). Not used. Usually use transformer outputs directly for downstream applications.
+
+# Random ML Stuff
+Batch norm: standardise each input using mean and standard deviation across minibatches. Massively increases rate of convergence. It works by reducing **covariate shift**: gradients in one layer are highly dependent on output in previous layer, especially if outputs change in highly correlated way.
+
+The effect of batch norm is dependent on minibatch size and it is not obvious how to apply this to RNNs -- it appears you must store different statistics for different time steps.
+
+Layer norm: overcome covariate shift by fixing mean and variance of inputs within each layer
+
+# Affine and Bi-affine Spaces
+Definition (affine space).
+: An affine space is a set \(A\) together with a vector space \(V\) and an action \(+\)  which is a mapping \(A \times V \to A, (a, v) \mapsto a + v\) which satisfies for every \(a \in A, v \in V, w \in V\):
+  1. \(a + 0 = a\)
+  2. \((a + v) + w = (a + w) + v\)
+  3. \(V \to A: v \mapsto a + v\) is a bijection
+
+  From 1 and 2, it follows that \(A \to A : a \mapsto a + v\) is a bijection for every \(v \in V\).
+
+  From 3, it follows that for every \(a,b\) in \(A\), there is a unique \(v \in V\) denoted \(v = b - a\) such that \(b = a + v\).
+
+Definition.
+: Let \(A\) be an affine space with associated vector space \(V\).
+
+  An affine *subspace* \(B\) of \(A\) is a subset of \(A\) such that for every \(a \in B\), \(W = \qty{b-a \mid b \in B}\) is a linear subspace of \(V\). This quantity does not depend on \(a\), so \(B\) is an affine space with associated vector space \(W\).
+
+  Alternatively, the affine subspaces of \(A\) are subsets of \(A\) of the form:
+  \[
+    a + W = \qty{a + w \mid w \in W},
+  \]
+  where \(W\) is a linear subspace of \(V\).
+
+The linear subspace associated with an affine subspace is its *direction*. Two subspaces sharing the same direction are *parallel*.
+
+Definition (affine map).
+: Given affine spaces \(A, B\) with associated vector spaces \(V, W\), an *affine map* from \(A\) to \(B\) is a map:
+  \[
+    f : A \to B,
+  \]
+  such that:
+  \[
+    V \to W : b - a \mapsto f(b) - f(a)
+  \]
+  is a linear map satisfying \(b - a = d - c \implies f(b) - f(a) = f(d) - f(c)\).
+
+The *dimension* of an affine space is the dimension of its associated vector space.
+
+Note.
+: 0 may not necessary lie in an affine space
+
+
+## Bilinear map
+Definition (bilinear map).
+: Let \(V, W, X\) be three vectorspaces over the same field \(F\). A bilinear map is a surjection:
+  \[
+    f: V \times W \to X,
+  \]
+  such that:
+  1. \(v \mapsto f(v, w)\) is a linear map from \(V\) to \(X\), for all \(w \in W\)
+  2. \(w \mapsto f(v, w)\) is a linear map from \(W\) to \(X\), for all \(v \in V\).
+
+Definition (biaffine map).
+: Let \(A_{1}, A_{2}, B\) be affine spaces with associated vector spaces \(V_{1}, V_{2}, W\). A surjection \(f : A_{1} \times A_{2} \to B\) is called a *biaffine map* if:
+  \[
+    g: V_{1} \times V_{2} \to W, (b_{1} - a_{1}, b_{2} - a_{2}) \mapsto f(b_{1}, b_{2}) - f(a_{1}, a_{2})
+  \]
+  is a bilinear map satisfying:
+  1. \(b_{1} - a_{1} = d_{1} - c_{1} \implies g(b) - g(a) = g(d) - g(c)\) for all valid \(b_{2}, a_{2}, c_{2}, d_{2}\)
+  1. \(b_{2} - a_{2} = d_{2} - c_{2} \implies g(b) - g(a) = g(d) - g(c)\) for all valid \(b_{1}, a_{1}, c_{1}, d_{1}\)
+  
+The set \(L(V, W; X)\) of all bilinear maps is a linear subspace of the space of all maps from \(V\times W\) into \(X\).
+
+
+
+# Comments
+
+Perhaps a more expressive logic language would include positive and negative components separately
+
+Adds more expression even if cov matrix the same, because gives boost to marginal cases 

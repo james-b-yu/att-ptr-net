@@ -27,6 +27,7 @@
 \usepackage{caption}
 \usepackage[export]{adjustbox} % allow max width
 \usepackage{graphbox} % allow align=t in \includegraphics to make them work better in minipages if first item
+\usepackage{appendixnumberbeamer}
 
 \MakeOuterQuote{"}
 
@@ -393,9 +394,9 @@
     \end{align*}
 \end{frame}
 
-\subsection{Encoder-decoder setup}
+\subsection{Sequence-to-sequence setup}
 \begin{frame}
-    \frametitle{Encoder-decoder setup}
+    \frametitle{Sequence-to-sequence setup}
     Given an input sentence \(w = \qty(w_{i})_{i=1}^{L}\) we generate \textit{embeddings} \(\boldsymbol{\omega} = \qty(\boldsymbol{\omega}_{i})_{i=1}^{L}\), where
     \[
         \boldsymbol{\omega}_{i} = \mathbf{WordEmbed}(w_{i}) \oplus \mathbf{CharEmbed}(w_{i}) \oplus \mathbf{BertEmbed}(w_{i}).
@@ -578,7 +579,7 @@
             \end{tikzpicture}}
         \end{column}
     \end{columns}
-    Fixing child \(w_{j}\), the vector \(\mathbf{softmax}(s^{\text{arc}}_{:, j})\) can be interpreted as an estimated probability distribution over potential parents.
+    Fixing child \(w_{j}\), the vector \(\mathbf{softmax}(s^{\text{arc}}_{:, j})\) can be interpreted as an estimated probability distribution over potential parents:
             \[
                 \hat{p}^{\text{arc}}(w_{i} \mid y_{<j}, w) = \mathbf{softmax}(s_{:,j}^{\text{arc}})_{i}.
             \]
@@ -586,7 +587,7 @@
 
 \subsection{Classification}
 \begin{frame}
-    \frametitle{Part-of-speech and morphology: bi-affine classifier}
+    \frametitle{Part-of-speech and morphology: quadratic classifier}
     \framesubtitle{Drawing on \textcite{dozat2016deep}.}
     \begin{columns}[t,onlytextwidth]
         \begin{column}[t]{0.52\textwidth}
@@ -761,7 +762,7 @@
             \end{alignat*}
     \end{itemize}
 
-    Fixing child \(w_{j}\), the vector \(\mathbf{softmax}(\vb{v}_{i,j}^{\text{pos}})\) can be interpreted as an estimated probability distribution over its parts-of-speech conditional on having an arc to \(w_{i}\) over potential parents.
+    Fixing child \(w_{j}\), the vector \(\mathbf{softmax}(\vb{v}_{i,j}^{\text{pos}})\) can be interpreted as an estimated probability distribution over its parts-of-speech conditional on having an arc to \(w_{i}\):
             \[
                 \hat{p}^{\text{pos}}(c \mid w_{i}, y_{<j}, w) = \mathbf{softmax}(\vb{v}^{\text{pos}}_{i,j})_{c}.
             \]
@@ -785,10 +786,10 @@
     The feasible region is very large, so the maximisation is approximated via \textit{beam search}.
 
     \begin{block}{Training}
-        The training process involves minimising the \textit{cross-entropy} between the estimated distribution \(\hat{p}\) and the empirical distribution present in the dataset \((w^{n}, y^{n})_{n=1}^{N}\).
+        Minimise the \textit{cross-entropy} between \(\hat{p}\) and the empirical distribution present in the dataset \((w^{n}, y^{n})_{n=1}^{N}\):
         
         \begin{align*}
-            \mathop{\underset{\hat{p}}{\min}} \Bigg\{ \sum_{n=1}^{N} \log \prod_{i=1}^{L_{n}} \Big\{ & \hat{p}_{w}({y_{i}^{n}}^{\text{arc}} \mid y_{<i}^{n}) \hat{p}_{w}({y_{i}^{n}}^{\text{lab}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \\[-2.25em]
+            \mathop{\underset{\hat{p}}{\min}} \Bigg\{ - \sum_{n=1}^{N} \log \prod_{i=1}^{L_{n}} \Big\{ & \hat{p}_{w}({y_{i}^{n}}^{\text{arc}} \mid y_{<i}^{n}) \hat{p}_{w}({y_{i}^{n}}^{\text{lab}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \\[-2.25em]
             & \cdot \hat{p}_{w}({y_{i}^{n}}^{\text{ord}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \hat{p}_{w}({y_{i}^{n}}^{\text{pos}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \hat{p}_{w}({y_{i}^{n}}^{\text{morph}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \Big\} \Bigg\} \\
             &= \mathop{\underset{ \hat{p}}{\min}} \qty{\text{loss}^{\text{arc}} + \text{loss}^{\text{lab}} + \text{loss}^{\text{ord}} + \text{loss}^{\text{pos}} + \text{loss}^{\text{morph}}}.
         \end{align*}
@@ -813,7 +814,7 @@
                     >{\centering\arraybackslash}p{3em}@{}
                     >{\centering\arraybackslash}p{4em}@{}}
                     \toprule
-                    \textbf{Model (with BERT)} & \textbf{F1} & \textbf{Disc. F1} \\ \midrule
+                    \textbf{Model} & \textbf{F1} & \textbf{Disc. F1} \\ \midrule
                     \textls[-70]{F.-González \& G.-Rodríguez (\citeyear{fernandez2022multitask2})} & 89.8 & 71.0 \\
                     Corro (\citeyear{corro2020span}) & \textbf{90.0} & 62.1 \\
                     Chen \& Komachi (\citeyear{chen2023discontinuous}) & 89.6 & 70.9 \\
@@ -821,7 +822,7 @@
                     \textbf{This work} & 89.5 & \textbf{82.2} \\ \bottomrule
                 \end{tabular}
 
-                \caption{Comparison of overall F1-score and F1-score measured only on discontinuous constituents (Disc. F1), calculated using \texttt{disco-dop} as standard practice}
+                \caption{Comparison of overall F1-score (\%) and F1-score measured only on discontinuous constituents (disc. F1). Calculated using \texttt{disco-dop} \parencite{van2016data} as standard practice. All models configured with BERT.}
             \end{table}
         \end{column}
         \begin{column}[t]{0.48\textwidth}
@@ -846,8 +847,67 @@
 \end{frame}
 \section{Appendix}
 
+\nocite{gleim2019practitioner}
+\nocite{eger2016lemmatization}
+
+
 \begin{frame}[allowframebreaks]
     \frametitle{Bibliography}
     \printbibliography
+\end{frame}
+
+\appendix
+
+\section{Mathematical justification of bi-affine classifier}
+\begin{frame}
+    \frametitle{Appendix: Mathematical justification of bi-affine classifier}
+    Notation has been simplified for presentational clarity. Take a single class \(c\) and suppose
+    \[
+        \mqty[\vb{e}_{i} \\ \vb{d}_{j}] \, \Big| \, c \sim \mathcal{N}\qty(\mqty[\boldsymbol{\mu}_{c} \\ \boldsymbol{\phi}_{c}], \mqty[\mathbf{A}_{c} & \mathbf{Q}_{c} \tran \\ \mathbf{Q}_{c} & \mathbf{B}_{c}]^{-1}).
+    \]
+
+    The conditional log-likelihood of \(c\) is the following affine quadratic form:
+    {\begin{align*}
+        v_{i,j}^{c} &= \log p(\vb{e}_{i} \mid c, \vb{d}_{j}) = k^{c} -\frac{1}{2} ((\vb{e}_{i} - \boldsymbol{\mu}_{c}) - \mathbf{A}_{c}^{-1} \mathbf{Q}_{c}\tran(\vb{d}_{j} - \boldsymbol{\phi}))\tran \mathbf{A}_{c} (\vb{e}_{i} - \boldsymbol{\mu}_{c}) - \mathbf{A}_{c}^{-1} \mathbf{Q}_{c}\tran(\vb{d}_{j} - \boldsymbol{\phi}) \\
+        &= \tikzmarknode{h-d-source}{\vb{e}_{i}\tran \mathbf{Q}_{c} \tran\vb{d}_{j}}
+            - \tikzmarknode{h-h-source}{\frac{1}{2} \vb{e}_{i}\tran \mathbf{A}_{c}\vb{e}_{i}}
+            - \tikzmarknode{d-d-source}{\frac{1}{2} \vb{d}_{j}\tran \mathbf{Q}_{c} \mathbf{A}_{c}^{-1} \mathbf{Q}_{c}\tran \vb{d}_{j}}
+            + \tikzmarknode{h-source}{\qty(\boldsymbol{\mu}\tran \mathbf{A}_{c} - \boldsymbol{\phi}\tran \mathbf{Q}_{c})\vb{e}_{i}} + \tikzmarknode{d-source}{(\boldsymbol{\phi}\tran \mathbf{Q}_{c} \mathbf{A}_{c}^{-1} \mathbf{Q}_{c}\tran - \boldsymbol{\mu}\tran \mathbf{Q}\tran)\vb{d}_{j}} \\
+             & \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad  \mathrel{\tikzmarknode{before-bias-source}{+}} \tikzmarknode{bias-source}{\boldsymbol{\mu}\tran\mathbf{Q}_{c}\tran\boldsymbol{\phi}
+            -  \frac{1}{2} \boldsymbol{\phi}\tran\mathbf{Q}_{c}\mathbf{A}_{c}^{-1}\mathbf{Q}\tran \boldsymbol{\phi} + k_{c}} \\
+        &= c\text{th row of }
+        \tikzmarknode{h-d-dest}{\vb{e}_{i}\tran \mathbf{U}_{\text{h-d}} \vb{d}_{j}}
+           + \tikzmarknode{h-h-dest}{\vb{e}_{i}\tran \mathbf{U}_{\text{h-h} }\vb{e}_{i}}
+           + \tikzmarknode{d-d-dest}{\vb{d}_{j}\tran \mathbf{U}_{\text{d-d}} \vb{d}_{j}}
+           + \tikzmarknode{h-dest}{U_{\text{h}} \vb{e}_{i}}
+           + \tikzmarknode{d-dest}{U_{\text{d}} \vb{d}_{j}}
+           + \tikzmarknode{bias-dest}{\vb{u}_{\text{bias}}}
+    \end{align*}
+    }%
+
+    \begin{tikzpicture}[remember picture, overlay]
+        \foreach \n in {h-d,h-h,d-d,h,bias}
+        {
+            \node [draw, fill=green, opacity=0.2, fit=(\n-source), inner sep=1pt] (highlight\n) {};
+            \draw[-Stealth] (highlight\n)  -- (\n-dest);
+        }
+
+        \node [draw, fill=green, opacity=0.2, fit=(d-source), inner sep=1pt] (highlightd) {};        
+
+        \coordinate (c11) at (highlighth.south east);
+        \coordinate (c12) at (highlighth.south east |- highlightbias.north west);
+        \coordinate (c1) at (barycentric cs:c11=5,c12=1);
+
+        \coordinate (c21) at (highlightbias.west);
+        \coordinate (c22) at (highlightbias.north west |- highlighth.south east);
+        \coordinate (c2) at (barycentric cs:c21=1,c22=2);
+
+        \draw[-Stealth] plot [smooth, tension=0.7] coordinates { (highlightd.south west) (c1) (c2 -| before-bias-source) ($(before-bias-source.west) - (0.5ex, 0)$) (d-dest.north)};
+    \end{tikzpicture}
+
+    \textbf{Memory-efficient implementation:} under conditional normality, the affine quadratic transformation can be computed as
+    \[
+        v_{i,j}^{c} = k^{c} + \norm{W_{h}^{c} \vb{e}_{i} + W_{d}^{c}\vb{d}_{j} + \vb{w}^{c}}_{2}
+    \]
 \end{frame}
 \end{document}
