@@ -119,3 +119,364 @@ The set \(L(V, W; X)\) of all bilinear maps is a linear subspace of the space of
 Perhaps a more expressive logic language would include positive and negative components separately
 
 Adds more expression even if cov matrix the same, because gives boost to marginal cases 
+
+
+# Language Research
+## Constituent Trees and Constituent Parsing
+The yield of a constituent is the terminals that it **dominates**.
+
+Definition (CFG).
+: A CFG is a lexicon (words + symbols) and rules expressing how the symbols can be grouped.
+
+  A CFG is a quadruple \((N, \Sigma, R, S)\):
+  1. \(N\): non-terminal symbols
+  2. \(\Sigma\): terminal symbols
+  3. \(R\) set of rules of the form \(A \to \beta\). \(A \in N\)  and \(\beta\) is a string of symbols from \(N \cup \Sigma\)
+  4. \(S \in N\) is the designated start symbol
+
+Treebanks implicitly define grammars. The grammar can be very large: PTB has 4500 rules for expanding verbs.
+
+Heads the loosely speaking the most important word in a constituent. They can be defined via:
+1. *handwritten rules* (parent, search direction, priority list), or
+1. explicitly within the grammar.
+
+Definition (CNF).
+: A CFG is in CNF if:
+  1. there are no \(\varepsilon\)-productions
+  2. every rule is of the form \(A \to B C \) or \(A \to a\).
+
+
+The problem with constituent parsing is *structural ambiguity*: I saw an elephant in my pyjamas.
+
+
+Definition (CKY algorithm).
+: Cocke-Kasami-Younger algorithm
+
+  A dynamic programming approach to constituent parsing. It takes advantage of constext-free nature: once constituents have been detected in a segment of the input, we can record its presence and use it.
+
+  Fill out a table containing all possible parses. Parses can then be retrieved, but this can come at exponential cost.
+
+Motivates *probabilistic parsing*.
+
+Definition (proabilistic CFG).
+:  a proabilistic CFG is a CFG in which every rule is associated with a probability denoting \(\mathbb{P}(\beta \mid A)\).
+
+The CKY can be modified to prefer CFGs with the highest "weight"
+
+Note (problems with PCFG).
+: 1. unrealistic independence assumptions which ignore **structural dependencies**: conditional probabilities are independent of the rest of the tree. For example: *NPs that are syntactic subjects are much more likely to be prounouns than nouns*.
+  2. being context-free, ignore lexical information contained within. probabilities could be set up to always prefer VP attachment over NP attachment
+
+  Can be solved by splitting dependents via part-of-speech: create a \(N_{\text{subject}}\) and \(N_{\text{object}}\).
+
+Alternatively: for flat representations, we just need *chunking*: IOB (inside, outside [of any chunk], begin) tagging. One of the tags is redundant because I->B implicitly means O, and O->I implicitly means B so we can choose.
+
+
+Socher, Manning et al (2013): TreeRNN: CFG. Apply classifiers to each pair of constituents, greedily from the bottom up (affine or quadratic for logits)
+
+
+## Applications
+**Tree-structured LSTM** to make tree-to-tree for sentiment analysis
+
+![ ](figures/2024-01-11-12-58-10.png)
+
+
+# LSTMs vs Transformers
+Transformers:
+1. handle long-range interactions when traditional RNNs struggle due to *vanishing gradients*.
+   - LSTMs (without forget gates) were designed to counteract vanishing/exploding gradients. Forget gates guarantee vanishing gradients. (original paper has no forget gate) Attention originally invented in context of RNN to get around this.
+1. parallelizability
+
+Transformers are not stateful. You tend to require deeper transformers to achieve the same effect as a shallow LSTM (1 layer LSTM can go further than 1-layer transformer)
+
+**Recurrent transformers**: combine advantages of fixed-length context transformers with advantages of infinite-length context RNNs
+
+
+# Linear Context-Free Rewriting Systems
+An extension of a CFG in which constituents can span tuples of strings. Probablistic LCFRS have very high time and space complexity.
+
+
+# Transition-Based Parsing: Buffer and stack
+Definition (bottom-up transition based c-parsing).
+: 1. Can only create continuous trees!
+  2. must be binarised (CNF)
+  3. myopic: does not use look-ahead information **is inexact**
+
+  Idea is to then add discontinuity information in a post-processing step.
+
+  1. shift: pop front word off buffer, push to stack
+  2. reduce-X: pop top two off stack, combine into constituent, and add back onto stack
+  3. (unary-X: pop top, reduce with unary, and add back)
+
+  Can add a GAP: to give access to previous computed nodes.
+
+Definition (top-down transition bsaed).
+: Open (create empty const on stack)
+  Shift (add terminal to stack)
+  Reduce (repeatedly pop terminals until open is encountered. pop this. create the completed subtree which is now added to the stack)
+
+Coavoux et al (2019) employ a **bottom-up transition-based approach** in which a BiLSTM informs probability of each action.
+
+Corro (2020) span-based method which applies *deduction rules* based on a set of **axioms** the sequence. Based on BiLSTM. Limitation: at yield can have at most one discontinuity.
+
+Chen and Komachi (2023): feed a vector sequence into layers which predict **tree-constructing actions**. These actions can be to join or swap adjacent nodes.
+
+Müller et al (2013): CRF based approach in which they *prune* the CRFs to prevent polynomial increase in lattice size. At each encoding step, they filter candidate states whose conditional probabilities are below certain thresholds.
+
+Kondratyuk et al (2018: Bidirectional RNN w/ character- and word-level embeddings. Encoder is shared across tasks; **attention across encoder outputs** into decoder.
+
+Schnabel & Schütze (2014): SVM approach using **distributional features** (number of times the ith word is immediately to the left). note: identity of word itself is not used, so performs better for unknown words
+
+# Regularisation Revision
+Regularisation can be done via:
+1. parameter norm penalities
+2. dataset augmentation
+3. noise robustness
+4. semi-supervised learning
+5. multi-task learning + parameter sharing
+7. early stopping
+8. sparse representations
+9. ensemble methods
+10. dropout
+11. advasarial training
+
+
+
+## Parameter norm penalties
+Note (L2 reg scaling property).
+: 
+    \(L_{2}\)-regularisation is also called {Tikhonov regularisation or ridge regression}.
+
+    If we approximate the objective via \((\vb{w} - \vb{w}^{*})\mathbf{H}(\vb{w} - \vb{w}^{*})\) with \(\mathbf{H}  = \mathbf{Q}\boldsymbol{\Lambda}\mathbf{Q}^{T}\), then
+    \[
+        \widetilde{\vb{w}} &= \sum_{i} \vb{q}_{i} \vb{q}_{i}^{T} \frac{\lambda_{i}}{1+\lambda_{i}} \vb{w}^{*}
+    \]
+
+    The effect is to scale down components aligned with small eigenvalues by a larger amount.
+
+    Larger eigenvalues correspond to directions which contribute to reducing the objective by a larger amount, and are therefore scaled down by less.
+
+
+Note.
+: L1 regularisation tends to lead to {sparse representations}.
+
+  In the case that \(\mathbf{H}\) is diagonal:
+  \[
+    w_{i} = \operatorname{sign}(w_{i}^{*}) \mathop{\underset{}{\max}}\qty{\abs{w_{i}^{*}} - \frac{\alpha}{H_{i,i}}, 0}
+  \]
+
+  If the contribution of the original objective towards the regularised objective is overwhelmed by \(\alpha\abs{\vb{w}}\) in direction \(i\) then that component is set to 0. Otherwise, the component is reduced by a constant magnitude.
+
+
+## Noise Robustness
+In reality, outputs are invariant to small amounts of noise. But neural networks are not robust to noise. You can make them more robust by adding noise to inputs (dataset augmentation) or to hidden layers (dataset augmentation with multiple levels of abstraction). 
+- Adding noise to **weights** encourages **stability of function being learned**. Poole (2014) demonstrated that this can lead to significant improvement.
+  - encourages to move to places in which perturbations of weights have little influence on output
+- adding noise to output *targets* protects against problems if \(y\) is often mislabelled
+
+## Semi-supervised learning
+Both unlabelled examples from \(P(\vb{x})\) and labelled examples from \(P(\vb{x}, \vb{y})\) are used to estimate \(P(\vb{y} \mid \vb{x})\) or predict \(\vb{y}\) from \(\vb{x}\).
+- goal: learn representation so similar examples have similar representations
+- share parameters between generative \(P(\vb{x})\) and discriminative \(P(\vb{y} \mid \vb{x})\) model, which encodes idea that generative model gives prior belief about distribution of data
+
+
+## Multitask learning
+In multitask learning, the model is divided into generic parameters, **shared** across all tasks, and task-specific parameters in the upper levels of the network
+
+Encodes the prior belief that among factors explaining variations observed in the data for different tasks, some are shared across two or more tasks.
+
+## Early Stopping
+How to **use** early stopping:
+- While training: stop when we see validation loss rise for \(p\) consecutive rounds, then take the one with the lowest validation loss.
+
+- Then we can either retrain on all data (subtlety: same number of parameter updates or epochs?), or continue training on all data until that value is reached.
+
+How early stopping works: effectively restrict the parameter space into a neighbourhood around the initial parameter values. Learning rate * num epochs effectively is reciprocal of coefficient for L2 reg. With a quadratic error function and grad. descent, early stopping equals L2 reg.
+
+## Bagging
+Note: introduce what ensemble methods are. Bagging works by application of law of large numbers, or central limit theorem: not all models make the same mistakes! Boostrap the data (sample w/ replacement), then aggregate (take average). Problem: not applicable  to large models (like large neural networks)!
+
+Boosting: incrementally add weak learners to build a model with higher capacity. The weak learners aim to predict the errors of the previous model.
+
+## Dropout
+Note (dropout).
+: 1. is an effective approximation of bagging, but with a large model, and all sub-networks formed by removing non-output units from a layer
+  2. use minibatches and sample from a distribution independently for each unit to decide whether or not to include
+  3. instead of training all sub-networks, we are training a tiny fraction of them, and only one gets trained at each minibatch step. Via *parameter sharing*, all sub-networks converge. for linear layers/affine transformations, it is sufficient to apply a binary mask
+  4. in inferece, we use **weight scaling inference rule**: multiply every unit by probability of inclusion. this has the effect of "averaging" all the subnetworks.
+     - same effect as dividing by probability of inclusion during training
+
+# Optimisation
+Why ML is different to optimisation:
+1. empirical risk minimisation is prone to overfitting! High capacity models can just memorize the training dataset.
+2. it is not feasible (e.g. no useful derivatives). so we use surrogate loss functions: proxy w/ advantages
+
+Choice of **activation function**:
+Advantages of ReLU:
+1. no vanishing gradient problem/does not saturate gradient
+2. leads to sparse models which are more computationally efficient. could be seen as a regularisation method
+
+Disadvantages of ReLU:
+1. units can become **dead**: a large gradient could lead to weights to reduced by so much that their gradients become zero forever after. Use leaky relu/ELU
+1. unbounded: tanh squashes between 0 and 1 which can lead to stability in *levels* (not necessarily derivatives)
+1. has **bias shift effect**. Use leaky relu/ELU
+
+
+## Minibaches
+Note (motivation of minibatch gradient descent rather than batch gradient descent).
+: 1. computationally expensive
+  2. the idea is to find an expected gradient. the standard error of the estimator for the mean of random variable scales by \(O(\frac{1}{\sqrt{n}})\): there are fewer than linear returns to increasing batch size
+  3. redundancy in the dataset (e.g. multiple copies)
+
+Note (elements informing minibatch size).
+: 1. some hardware achieve better runtime with powers of 2
+  2. multi-core systems are underutilised with small batch size
+  3. memory considerations/large batch sizes
+  3. smaller batches add a regularising effect: add noise to the learning process. generalisation error is often best for a batch size of 1
+     - would need smaller learning rate to reduce instability from added noise
+     - runtimes are slower: more steps and smaller learning rate
+  4. second-order methods may need large batch size to minimise variation amplified by multiplying an estimate by inverse of estimate for hessian which could be poorly conditioned for smaller batch sizes
+
+Note (problems encountered during optimisation).
+: 1. ill conditioning
+  2. 
+
+Note (consequence of ill conditioning).
+: If the Hessian is ill-conditioned, then a second-order taylor series approximation of the cost function shows that gradient descent steps could *increase* the cost function if learning rate is not small enough.
+  - often curvature increases by factor of 10, but magnitude of gradient does not change
+  - **therefore motivates *reducing the learning rate***
+
+  The update is to add:
+  \[
+    \frac{1}{2}\varepsilon^{2} \vb{g}^{T}\mathbf{H}\vb{g} - \varepsilon \vb{g}^{T}\vb{g}.
+  \]
+
+Note (cause/consequence of local minima).
+: Neural networks have **weight space symmetry**: a model identifiability problem.
+
+  In actuality, it is an open question whether there are many local with high cost relative to the global.
+
+Note (definition cause and problem with saddle points).
+: Saddle point: Hessian has positive and negative eigenvalues. Local minimum across one cross-section and local maximum across another.
+ 
+  Result unclear for gradient descent: gradient can become small at saddle point but gradient descent empirically shown to escape. Bigger problem with Newton (even second order): can jump to a saddle point. But Daulpin et al (2014) proposes a saddle-free Newton method.
+
+  Many classes of random functions \(\mathbb{R}^{n} \to \mathbb{R}\) exibit the property that as the dimension of input space increases, the probability of a saddle point increases exponentially relative to local minima.
+  - intuition: local minima requires all eigv positive. saddle point: any one to be positive and any one to be negative. if determined by a coin toss, probability of saddle point converges to 1
+
+  In many classes of random functions, eigv are more likely to be +ve at areas of low cost. this means critical values with low cost more likely local minima; critical values with high cost are more likely saddle points.
+
+  Papers demonstrating this theoretically and empirically with neural nets: Dauphin et al.
+
+
+## SGD
+Why decrease learning rate in SGD:
+1. SGD introduces source of noise which does not go away as we converge to a minimum.
+1. curvature dominates magnitude of gradient 
+
+Note.
+: It is sufficient for convergence that learning rates are square-summable but not additively summable.
+
+Definition (SGD).
+: 1. require learning rates \(\varepsilon_{k}\)
+  1. require initial parameter \(\boldsymbol{\theta}\)
+  1. set \(k = 1\)
+  1. while stopping criterion not met
+     1. sample a minibatch of size \(m\) 
+     1. find gradient estimate: \(\hat{\vb{g}}_{k} \leftarrow \frac{1}{m} \grad_{\boldsymbol{\theta}} \sum_{j=1}^{m} L_{j}(f(\vb{x}; \boldsymbol{\theta}), \vb{y})\)
+     1. update gradient: \(\boldsymbol{\theta} \leftarrow \boldsymbol{\theta} - \varepsilon_{k} \hat{\vb{g}}_{k}\)
+
+Note (motivation for momentum).
+: 1. accelerates learning in face of two: *poor condtioning of hessian matrix* + vanilla SGD adds *noise*
+  1. these noise can cause oscillatory behaviour
+  1. take exponential moving average
+
+  Directions of low curvature have lower rates of local change. This means that they persist for longer with momentum, leading to greater stability.
+
+Definition (SGD with momentum).
+: SGD with momentum defines a velocity variable \(\vb{v}\) which accumulates an exponentially-moving average of past gradients, and moves weights in this direction. (assume unit mass so velocity=momentum)
+
+  1. require \(\boldsymbol{\theta}, \varepsilon_{k}, \alpha\)
+  1. set \(k=1, \vb{v}=0\)
+  1. while stopping criterion not met:
+     1. initialise a minibatch and get estimate of gradient \(\hat{\vb{g}} = \grad_{\boldsymbol{\theta}}\frac{1}{m}\sum L(f(\vb{x}; \boldsymbol{\theta}), \vb{y})\)
+     1. update velocity \(\vb{v} \leftarrow \alpha \vb{v} - \varepsilon \hat{\vb{g}}\)
+     1. update parameters: \(\boldsymbol{\theta} \leftarrow \boldsymbol{\theta} + \vb{v}\)
+
+Note (momentum and magnitude of gradient).
+: The history is scaled by a factor \(\alpha\) at each step. If gradient were constant, the magnitude of the velocity would be \(\varepsilon \frac{\norm{\hat{\vb{g}}}}{1-\alpha}\) in steady state, so we actually think of the hyperparameter in terms of \(\frac{\varepsilon}{1-\alpha}\) as how much "terminal velocity" is multiplied compared to without momentum.
+
+Note (momentum and drag).
+: Newtonian dynamics. Two forces: gradient (thrust); *viscous drag* proportional to \(\vb{v}\). Turbulent: too small at small velocities; coefficient of friction: too large.
+
+Definition (SGD with Nesterov momentum).
+: Nesterov momentum differs from standard momentum in location where the gradient is evaluated. It is evaluated *after* the current curent velocity is applied. Adding a correction factor.
+
+
+Note (Nesterov momentum convergence).
+: Nesterov showed that with convex batch gradient, rate of excess error is brought down from \(\frac{1}{n}\) to \(\frac{1}{n^{2}}\).
+  
+  Gains less obvious compared to SGD or non-convex, but Sutskever et al (2013) demonstrate empirially improved performance on DNNs and RNNs.
+
+Note (subtlety in pytorch implementation of nesterov momentum).
+: Adds a hook/only has access to *gradients at current parameters* \(\boldsymbol{\theta}_{t} + \alpha \vb{v}_{t}\).
+
+  Original:
+  \[
+    \vb{x}_{t+1} = \mqty[\vb{v}_{t+1} \\ \boldsymbol{\theta}_{t+1} \\ 1] = \mqty[\alpha & & g(\vb{k}^{T}\vb{x}_{t}) \\
+     1 & 1 \\ & &] \mqty[\vb{v}_{t} \\ \boldsymbol{\theta}_{t} \\ 1],
+  \]
+  where \(\vb{k}^{T} = (\alpha, 1, 0)\)
+
+  Pytorch involves a change of variables \(\vb{z}_{t} = \mqty[-\frac{1}{\varepsilon} & & \\ \alpha & 1  \\ & & 1] \vb{x}_{t}\).
+
+  Which is as if you interpret the current weights as the "adjusted" weights.
+
+  You must add a final line of code making an adjustment back from adjusted weights to the acutal weights once training is done. However, the adjustment is in practice tiny so can be ignored.
+
+
+Note (method of initial initialisation).
+: I used Kaiming/He initialisation. 
+
+  On a fully connected layer iwth \(m\) inputs, \(n\) outputs
+  \[
+    U\qty(-\sqrt{\frac{6}{m+n}}, \sqrt{\frac{6}{m+n}}).
+  \]
+
+  Designed to compromise between variance in levels and variance in gradients, assuming chain of matmul with no non-linearities.
+
+Note (tradeoff in magnitude of initial parameters).
+: advatnages of large weights:
+  1. avoids signal getting lost during forwardprop, and can mitigate against gradient vanishing during backprop
+  1. helps to break symmetry, leading to fewer redundant units 
+     - could use gram-schmidt orthogonalisation on initial weight matrix, but cheaper to use initialisation via high entropy
+
+  disadvantages:
+  1. gradient exploding problem and instability
+  1. **chaos**: extreme sensitivity to input
+
+
+Adaptive learning methods include:
+1. AdaGrad
+1. RMSProp
+1. Adam
+
+Note (AdaGrad).
+: Computes parameter-specific learning rates by scaling down gradients by their cumulative root-mean-square:
+
+  ![ ](figures/2024-01-12-15-44-13.png)
+
+Note (disadvantage of AdaGrad).
+: Works well in convex settings but in non-convex settings, can scale gradients by too much before we enter a "convex bowl".
+
+Note (RMSProp).
+: Keeps an EMA of squared gradients:
+
+  ![ ](figures/2024-01-12-15-45-32.png)
+
+  ![ ](figures/2024-01-12-15-46-10.png)  
+
+Note (Adam).
+: Accumulates velocity and square gradients separately before updates. Applies a bias correction so learning rate are not tiny at the beginning. No Nesterov.
+
+  ![ ](figures/2024-01-12-15-47-29.png)

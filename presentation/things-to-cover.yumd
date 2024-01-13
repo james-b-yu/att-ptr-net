@@ -20,34 +20,30 @@ review the multitask paper
 
 things to do:
 1. DONE get results
+1. DONE overview of compsci ways to parse
+1. DONE understand what the f1 score means
+1. DONE find out about the continuous consittuency parsing for english
+1. DONE overview of all the cited/compard models
 2. learn markov chains
 3. revise deep learning book
+   - DONE regularisation
+   - DONE optimisation
 4. learn first 10 chapters of info theory
-5. revise word2vec and sent2vec
 6. revise how transformers and lstms work
+   - what is bert?
 7. revise tree-based methods
 8. bias-variance tradeoff
-9. copy the algorithms in "parsing as reduction" into the appendix
-1. overview of compsci ways to parse
-1. understand what the f1 score means
-1. find out about the continuous consittuency parsing for english
 1. give words to the "latent factors"
+5. revise word2vec and sent2vec
+   - skip-gram with negative sampling model  (word2vec)
+1. resnet
+1. why cross entropy, not mse
+1. why softmax?
 
-all the mlps have nonlinearities!202ß
-
-skip-gram with nega- tive sampling model  (word2vec)
-
-make a slide justifying why your method now spans the entire **biaffine space**
-
-what does disc f1 mean???
-
-Daniel Kondratyuk, Tomás Gavenciak, Milan Straka, and Jan Hajic
-(2018), LemmaTag: Jointly tagging and lemmatizing for morphologically-rich
-languages with BRNNs
-
-what is bert?
-
-overview of all the cited/compard models
-
+all the mlps have nonlinearities!
 
 QUADRATIC DISCRIMINANT ANALYSIS
+how to improve model
+appliations
+what is reinforcement learning?!!
+SVM

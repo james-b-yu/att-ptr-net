@@ -19,6 +19,88 @@
 
 \refsection{0}
   \datalist[entry]{apa/global//global/global}
+    \entry{black1991procedure}{article}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{10}{}{%
+        {{un=0,uniquepart=base,hash=59df3c3f8a011fe87211227cc009f936}{%
+           family={Black},
+           familyi={B\bibinitperiod},
+           given={Ezra},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3d62436d4814c1ee60bb9cfd9f043735}{%
+           family={Abney},
+           familyi={A\bibinitperiod},
+           given={Steven},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=66f85124f51de0e2f7d33884f28fff5b}{%
+           family={Flickinger},
+           familyi={F\bibinitperiod},
+           given={Dan},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d6135b0ede996102bf6c0545250850cd}{%
+           family={Gdaniec},
+           familyi={G\bibinitperiod},
+           given={Claudia},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3d96e426faa039bfa33eb6e4c54e8a77}{%
+           family={Grishman},
+           familyi={G\bibinitperiod},
+           given={Ralph},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d715b938a0d1a6ffba91bcae5df3386a}{%
+           family={Harrison},
+           familyi={H\bibinitperiod},
+           given={Phil},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=fe68dd5216d1204e938be0c7106907cf}{%
+           family={Hindle},
+           familyi={H\bibinitperiod},
+           given={Donald},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=98caf00e1da109f4b883233679361f85}{%
+           family={Ingria},
+           familyi={I\bibinitperiod},
+           given={Robert},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=48d2d6e25183229596dbf23cf956498e}{%
+           family={Jelinek},
+           familyi={J\bibinitperiod},
+           given={Frederick},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9dc43225b3530dee7ed40f9e9cce93ce}{%
+           family={Klavans},
+           familyi={K\bibinitperiod},
+           given={Judith\bibnamedelima L},
+           giveni={J\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{a3caa0158daf8b7c183de4f47f3236a6}
+      \strng{fullhash}{ca92bd56e41a9292f2b6c29e847af779}
+      \strng{bibnamehash}{ca92bd56e41a9292f2b6c29e847af779}
+      \strng{authorbibnamehash}{ca92bd56e41a9292f2b6c29e847af779}
+      \strng{authornamehash}{a3caa0158daf8b7c183de4f47f3236a6}
+      \strng{authorfullhash}{ca92bd56e41a9292f2b6c29e847af779}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Speech and Natural Language: Proceedings of a Workshop Held at Pacific Grove, California, February 19-22, 1991}
+      \field{title}{A procedure for quantitatively comparing the syntactic coverage of English grammars}
+      \field{year}{1991}
+    \endentry
     \entry{bert-base-german-cased}{online}{}
       \name{author}{4}{}{%
         {{un=0,uniquepart=base,hash=8140d9e50653c78947e9c2b126a38ffd}{%
@@ -148,6 +230,50 @@
       \field{year}{2016}
       \field{pages}{357\bibrangedash 370}
       \range{pages}{14}
+    \endentry
+    \entry{coavoux2019unlexicalized}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=538056154374c2d267afe55da20258e4}{%
+           family={Coavoux},
+           familyi={C\bibinitperiod},
+           given={Maximin},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f82dac5b89d077e9b09d53e59a10f252}{%
+           family={Crabbé},
+           familyi={C\bibinitperiod},
+           given={Benoît},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=4850327895eea4187f7220ab102d34b6}{%
+           family={Cohen},
+           familyi={C\bibinitperiod},
+           given={Shay\bibnamedelima B},
+           giveni={S\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {MIT Press One Rogers Street, Cambridge, MA 02142-1209, USA journals-info~…}%
+      }
+      \strng{namehash}{c7d2448ae2263a06695b4695eab8d47a}
+      \strng{fullhash}{252992dc05b9d2fcec4c8c5b562ae2d2}
+      \strng{bibnamehash}{252992dc05b9d2fcec4c8c5b562ae2d2}
+      \strng{authorbibnamehash}{252992dc05b9d2fcec4c8c5b562ae2d2}
+      \strng{authornamehash}{c7d2448ae2263a06695b4695eab8d47a}
+      \strng{authorfullhash}{252992dc05b9d2fcec4c8c5b562ae2d2}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \true{uniqueprimaryauthor}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transactions of the Association for Computational Linguistics}
+      \field{title}{Unlexicalized transition-based discontinuous constituency parsing}
+      \field{volume}{7}
+      \field{year}{2019}
+      \field{pages}{73\bibrangedash 89}
+      \range{pages}{17}
     \endentry
     \entry{corro2020span}{article}{}
       \name{author}{1}{}{%
