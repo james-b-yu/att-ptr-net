@@ -1,5 +1,5 @@
 % $ biblatex auxiliary file $
-% $ biblatex bbl format version 3.2 $
+% $ biblatex bbl format version 3.1 $
 % Do not modify the above lines!
 %
 % This is an auxiliary file used by the 'biblatex' package.
@@ -19,7 +19,7 @@
 
 \refsection{0}
   \datalist[entry]{apa/global//global/global}
-    \entry{black1991procedure}{article}{}
+    \entry{black1991procedure}{inproceedings}{}
       \true{moreauthor}
       \true{morelabelname}
       \name{author}{10}{}{%
@@ -91,13 +91,13 @@
       \strng{authornamehash}{a3caa0158daf8b7c183de4f47f3236a6}
       \strng{authorfullhash}{ca92bd56e41a9292f2b6c29e847af779}
       \field{sortinit}{B}
-      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{sortinithash}{8de16967003c7207dae369d874f1456e}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Speech and Natural Language: Proceedings of a Workshop Held at Pacific Grove, California, February 19-22, 1991}
+      \field{booktitle}{Speech and Natural Language: Proceedings of a Workshop Held at Pacific Grove, California, February 19-22, 1991}
       \field{title}{A procedure for quantitatively comparing the syntactic coverage of English grammars}
       \field{year}{1991}
     \endentry
@@ -135,7 +135,7 @@
       \strng{authornamehash}{ba14fe0a6e0c4cb8694eee9f5ac5032b}
       \strng{authorfullhash}{33facfe17a5fe6970d0961a23fcf848b}
       \field{sortinit}{C}
-      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{sortinithash}{4c244ceae61406cdc0cc2ce1cb1ff703}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
@@ -180,7 +180,7 @@
       \strng{authornamehash}{d432ffc7d613cab267e3a96f0b5750d4}
       \strng{authorfullhash}{d432ffc7d613cab267e3a96f0b5750d4}
       \field{sortinit}{C}
-      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{sortinithash}{4c244ceae61406cdc0cc2ce1cb1ff703}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
@@ -218,7 +218,7 @@
       \strng{authornamehash}{cb3334876befab54ede307a5a57eeb41}
       \strng{authorfullhash}{cb3334876befab54ede307a5a57eeb41}
       \field{sortinit}{C}
-      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{sortinithash}{4c244ceae61406cdc0cc2ce1cb1ff703}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
@@ -240,7 +240,7 @@
            giveni={M\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=f82dac5b89d077e9b09d53e59a10f252}{%
-           family={Crabbé},
+           family={Crabb{é}},
            familyi={C\bibinitperiod},
            given={Benoît},
            giveni={B\bibinitperiod},
@@ -262,7 +262,7 @@
       \strng{authornamehash}{c7d2448ae2263a06695b4695eab8d47a}
       \strng{authorfullhash}{252992dc05b9d2fcec4c8c5b562ae2d2}
       \field{sortinit}{C}
-      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{sortinithash}{4c244ceae61406cdc0cc2ce1cb1ff703}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
@@ -275,7 +275,7 @@
       \field{pages}{73\bibrangedash 89}
       \range{pages}{17}
     \endentry
-    \entry{corro2020span}{article}{}
+    \entry{corro2020span}{inproceedings}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=4b9b42906b31f928adcfe4d79e9bf689}{%
            family={Corro},
@@ -291,17 +291,17 @@
       \strng{authornamehash}{4b9b42906b31f928adcfe4d79e9bf689}
       \strng{authorfullhash}{4b9b42906b31f928adcfe4d79e9bf689}
       \field{sortinit}{C}
-      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{sortinithash}{4c244ceae61406cdc0cc2ce1cb1ff703}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Empirical Methods in Natural Language Processing}
+      \field{booktitle}{Empirical Methods in Natural Language Processing}
       \field{title}{Span-based discontinuous constituency parsing: a family of exact chart-based algorithms with time complexities from O (n\^{} 6) down to O (n\^{} 3)}
       \field{year}{2020}
     \endentry
-    \entry{dozat2016deep}{article}{}
+    \entry{dozat2016deep}{inproceedings}{}
       \name{author}{2}{}{%
         {{un=0,uniquepart=base,hash=d1d28f03da75cca98fac1800aec56dbb}{%
            family={Dozat},
@@ -323,17 +323,17 @@
       \strng{authornamehash}{f6067aedf665eea71726e7d1913c5a3c}
       \strng{authorfullhash}{f6067aedf665eea71726e7d1913c5a3c}
       \field{sortinit}{D}
-      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{sortinithash}{c438b3d5d027251ba63f5ed538d98af5}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{International Conference on Learning Representations}
+      \field{booktitle}{International Conference on Learning Representations}
       \field{title}{Deep Biaffine Attention for Neural Dependency Parsing}
       \field{year}{2016}
     \endentry
-    \entry{eger2016lemmatization}{article}{}
+    \entry{eger2016lemmatization}{inproceedings}{}
       \name{author}{3}{}{%
         {{un=0,uniquepart=base,hash=fa4a8f2209aafcafe807835e7d616b7b}{%
            family={Eger},
@@ -344,7 +344,7 @@
         {{un=0,uniquepart=base,hash=823293d0e72b0e633e6d544e93e9521c}{%
            family={Gleim},
            familyi={G\bibinitperiod},
-           given={Rüdiger},
+           given={R{ü}diger},
            giveni={R\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=68f914358faa4cd8d65fa016e18be344}{%
@@ -361,15 +361,16 @@
       \strng{authornamehash}{9559f6cd8b2cc21a1576886837117405}
       \strng{authorfullhash}{604eaeb80779282df16eff4513cbd4ea}
       \field{sortinit}{E}
-      \field{sortinithash}{8da8a182d344d5b9047633dfc0cc9131}
+      \field{sortinithash}{c554bd1a0b76ea92b9f105fe36d9c7b0}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Proceedings of the Tenth International Conference on Language Resources and Evaluation (LREC'16)}
+      \field{booktitle}{Proceedings of the Tenth International Conference on Language Resources and Evaluation (LREC'16)}
       \field{title}{Lemmatization and morphological tagging in German and Latin: A comparison and a survey of the state-of-the-art}
       \field{year}{2016}
+      \true{nocite}
       \field{pages}{1507\bibrangedash 1513}
       \range{pages}{7}
     \endentry
@@ -398,7 +399,7 @@
       \strng{authornamehash}{8511831d5fa918fece481d17c4d815cb}
       \strng{authorfullhash}{8511831d5fa918fece481d17c4d815cb}
       \field{sortinit}{F}
-      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{sortinithash}{fb0c0faa89eb6abae8213bf60e6799ea}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
@@ -411,10 +412,10 @@
       \field{pages}{107760}
       \range{pages}{1}
     \endentry
-    \entry{fernandez2015parsing}{article}{}
+    \entry{fernandez2015parsing}{inproceedings}{}
       \name{author}{2}{}{%
         {{un=0,uniquepart=base,hash=1034c9c0a75375015adeb2d99a01a7aa}{%
-           family={Fernández-González},
+           family={Fern{á}ndez-Gonz{á}lez},
            familyi={F\bibinithyphendelim G\bibinitperiod},
            given={Daniel},
            giveni={D\bibinitperiod},
@@ -422,7 +423,7 @@
         {{un=0,uniquepart=base,hash=9480c28f63984e2f3cbe6ce914f8aa8b}{%
            family={Martins},
            familyi={M\bibinitperiod},
-           given={André\bibnamedelima FT},
+           given={Andr{é}\bibnamedelima FT},
            giveni={A\bibinitperiod\bibinitdelim F\bibinitperiod},
            givenun=0}}%
       }
@@ -433,13 +434,13 @@
       \strng{authornamehash}{f8adbff0ce000fc741380b757f903b90}
       \strng{authorfullhash}{f8adbff0ce000fc741380b757f903b90}
       \field{sortinit}{F}
-      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{sortinithash}{fb0c0faa89eb6abae8213bf60e6799ea}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Proceedings of the 53rd Annual Meeting of the Association for Computational Linguistics and the 7th International Joint Conference on Natural Language Processing (Volume 1: Long Papers)}
+      \field{booktitle}{Proceedings of the 53rd Annual Meeting of the Association for Computational Linguistics and the 7th International Joint Conference on Natural Language Processing (Volume 1: Long Papers)}
       \field{title}{Parsing as Reduction}
       \field{year}{2015}
       \field{pages}{1523\bibrangedash 1533}
@@ -450,7 +451,7 @@
         {{un=0,uniquepart=base,hash=823293d0e72b0e633e6d544e93e9521c}{%
            family={Gleim},
            familyi={G\bibinitperiod},
-           given={Rüdiger},
+           given={R{ü}diger},
            giveni={R\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=fa4a8f2209aafcafe807835e7d616b7b}{%
@@ -478,7 +479,7 @@
            giveni={W\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=7f025b02827fb519bdfbc78d1fa3c14a}{%
-           family={Lücking},
+           family={L{ü}cking},
            familyi={L\bibinitperiod},
            given={Andy},
            giveni={A\bibinitperiod},
@@ -509,7 +510,7 @@
       \strng{authornamehash}{d986956c2e7b46636a32889757a27e12}
       \strng{authorfullhash}{a9b326e0280fe47dfe61b5bca415c833}
       \field{sortinit}{G}
-      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{sortinithash}{62eb2aa29549e4fdbd3cb154ec5711cb}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
@@ -520,6 +521,7 @@
       \field{title}{A practitioner's view: a survey and comparison of lemmatization and morphological tagging in German and Latin}
       \field{volume}{7}
       \field{year}{2019}
+      \true{nocite}
       \field{pages}{1\bibrangedash 52}
       \range{pages}{52}
     \endentry
@@ -532,9 +534,9 @@
            giveni={D\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=763000f428c9dff0f8f53c70d25c8e31}{%
-           family={Gavenčiak},
+           family={Gaven{č}iak},
            familyi={G\bibinitperiod},
-           given={Tomáš},
+           given={Tom{á}{š}},
            giveni={T\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=d709af6997b3ea76ee9b027f6dda0b00}{%
@@ -544,7 +546,7 @@
            giveni={M\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=bf8ce49dbc8185f7f3b7188465c822a7}{%
-           family={Hajič},
+           family={Haji{č}},
            familyi={H\bibinitperiod},
            given={Jan},
            giveni={J\bibinitperiod},
@@ -557,7 +559,7 @@
       \strng{authornamehash}{a4fcab5c5e4827423b7c8523c6bb80c6}
       \strng{authorfullhash}{72ca09b4195d5b2133a11f7e570e6038}
       \field{sortinit}{K}
-      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{sortinithash}{d3edc18d54b9438a72c24c925bfb38f4}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
@@ -567,10 +569,10 @@
       \field{title}{Lemmatag: jointly tagging and lemmatizing for morphologically-rich languages with BRNNs}
       \field{year}{2018}
     \endentry
-    \entry{muller2013efficient}{article}{}
+    \entry{muller2013efficient}{inproceedings}{}
       \name{author}{3}{}{%
         {{un=0,uniquepart=base,hash=c2ad285eb682bccdfe2685694db2188f}{%
-           family={Müller},
+           family={M{ü}ller},
            familyi={M\bibinitperiod},
            given={Thomas},
            giveni={T\bibinitperiod},
@@ -582,7 +584,7 @@
            giveni={H\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=9a80de0e5ec6df57363aaf321a5d05be}{%
-           family={Schütze},
+           family={Sch{ü}tze},
            familyi={S\bibinitperiod},
            given={Hinrich},
            giveni={H\bibinitperiod},
@@ -595,13 +597,13 @@
       \strng{authornamehash}{ac68b03d9bae4f1b128311bafa44418d}
       \strng{authorfullhash}{011a83bbcd0d0feb88ff2cb0ba1ce9e8}
       \field{sortinit}{M}
-      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{sortinithash}{2e5c2f51f7fa2d957f3206819bf86dc3}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Proceedings of the 2013 conference on empirical methods in natural language processing}
+      \field{booktitle}{Proceedings of the 2013 conference on empirical methods in natural language processing}
       \field{title}{Efficient higher-order CRFs for morphological tagging}
       \field{year}{2013}
       \field{pages}{322\bibrangedash 332}
@@ -616,7 +618,7 @@
            giveni={T\bibinitperiod},
            givenun=0}}%
         {{un=0,uniquepart=base,hash=9a80de0e5ec6df57363aaf321a5d05be}{%
-           family={Schütze},
+           family={Sch{ü}tze},
            familyi={S\bibinitperiod},
            given={Hinrich},
            giveni={H\bibinitperiod},
@@ -632,7 +634,7 @@
       \strng{authornamehash}{c7dbb0174159354f69ada8d62547f82a}
       \strng{authorfullhash}{c7dbb0174159354f69ada8d62547f82a}
       \field{sortinit}{S}
-      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{sortinithash}{c319cff79d99c853d775f88277d4e45f}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
@@ -676,7 +678,7 @@
       \strng{authornamehash}{e84ba5ba48c865e58ebbc71f675f70fc}
       \strng{authorfullhash}{dc4f1ace8a17c3d290c018e238252674}
       \field{sortinit}{V}
-      \field{sortinithash}{afb52128e5b4dc4b843768c0113d673b}
+      \field{sortinithash}{02432525618c08e2b03cac47c19764af}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
@@ -718,7 +720,7 @@
       \strng{authornamehash}{832d19b6ecbaa1d465342fe676ffb29a}
       \strng{authorfullhash}{a442a9bbb26362f27b11afa1b7ac9582}
       \field{sortinit}{V}
-      \field{sortinithash}{afb52128e5b4dc4b843768c0113d673b}
+      \field{sortinithash}{02432525618c08e2b03cac47c19764af}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \true{uniqueprimaryauthor}
