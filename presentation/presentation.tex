@@ -1,5 +1,5 @@
 
-\documentclass[8pt]{beamer}
+\documentclass[8pt,handout]{beamer}
 
 \usepackage[T1]{fontenc}
 \usepackage{lmodern} % must be loaded with fontenc --- otherwise text will become bitmaps
@@ -157,7 +157,7 @@
 \subsection{Motivation}
 \begin{frame}
     \frametitle{Why use a neural network to model German grammar?}
-    \begin{itemize}[<+->]
+    \begin{itemize}
         \item Constituent trees are a syntactic formalism representing phrasal hierarchy in a sentence.
 
         \item Free-order languages like German contain many grammatical discontinuities.
@@ -168,7 +168,7 @@
 
         \item My model is based on Fernández-González and Gómez-Rodríguez (\citeyear{fernandez2022multitask2}), who propose an architecture based on pointer neural networks in a multi-task setting.
 
-        \item I achieve state-of-the-art performance across several metrics.
+        \item I achieve state-of-the-art performance across several metrics on the TIGER treebank.
     \end{itemize}
 \end{frame}
 
@@ -201,7 +201,7 @@
             \draw[ultra thick] (vp2.south) -- (w3.north);
         \end{tikzpicture}
     \end{figure}
-    \pause
+
     Let \(w = \qty(w_{1}, \ldots, w_{L})\) be a sentence.
     \begin{definition}
         \begin{itemize}
@@ -279,8 +279,6 @@
         A \textit{dependency tree} is a rooted tree spanning the words in the sentence \(\qty(w_{i})_{i=1}^{L}\). Each edge is labelled and connects a \textit{head word} (parent) to a \textit{dependency} (child).
     \end{definition}
 
-    \pause
-
     \textcite{fernandez2015parsing} show that constituent trees are isomorphic to dependency trees in which the edges contain information about constituent labels and attachment order.
 
     \begin{columns}[onlytextwidth]
@@ -308,6 +306,7 @@
                     \draw[very thin] (vpc2.south) -- (wc1.north);
                     \draw[ultra thick] (vpc2.south) -- (wc3.north);
                 \end{tikzpicture}
+                \caption{Constituent tree}
             \end{figure}
         \end{column}
         \begin{column}{0.1\textwidth}
@@ -335,6 +334,7 @@
 
                     \foreach \n in {1,2,3,4,5} \node[below=1ex of {wd\n |- w.south}, inner sep=0, align=center] {\(w_{\n}\)};
                 \end{tikzpicture}
+                \caption{Dependency tree}
             \end{figure}
         \end{column}
     \end{columns}
@@ -349,12 +349,12 @@
             \vspace{-1em}
             \begin{itemize}[<+->]
                 \item Regressor: sentence \(\qty(w_{i})_{i = 1}^{L}\).
-                \item Regressand: dependency tree, parts of speech and morphology.
+                \item Regressand: \(y_{i} = (y_{i}^{\text{arc}}, y_{i}^{\text{lab}}, y_{i}^{\text{ord}}, y_{i}^{\text{pos}}, y_{i}^{\text{morph}})\) for each \(i = 1, \ldots, L\).
                 \item Bottom-up approach: think of \textit{arcs} going from every child \(w_{i}\) to its parent \(y_{i}^{\text{arc}} \in w \setminus w_{i}\).
             \end{itemize}
         \end{column}
         
-        \begin{column}[t]{0.4\textwidth}<4->
+        \begin{column}[t]{0.4\textwidth}
             % \begin{figure}
                 \raggedleft
                 \scalebox{0.8}{\begin{tikzpicture}[remember picture,baseline=(current bounding box.north west)]
@@ -396,23 +396,36 @@
             % \end{figure}        
         \end{column}
     \end{columns}
-    \pause
-    Denote the regressand by \(y = \qty(y_{i})_{i=1}^{L}\) where \(y_{i} = (y_{i}^{\text{arc}}, y_{i}^{\text{lab}}, y_{i}^{\text{ord}}, y_{i}^{\text{pos}}, y_{i}^{\text{morph}})\) and with mild abuse of notation let \(y_{<i} = \qty(y_{1}, \ldots, y_{i-1})\) for each \(i = 2, \ldots, L\) and \(y_{<1} = 0\).
-    \pause
-    \begin{assumption}(conditional independence)
+    \uncover<4->{Denote \(y = \qty(y_{i})_{i=1}^{L}\) and with mild abuse of notation let \(y_{<i} = \qty(y_{1}, \ldots, y_{i-1})\) for each \(i = 2, \ldots, L\) and \(y_{<1} = 0\).}
+    \uncover<5->{\begin{assumption}[conditional independence]
         For each \(i = 1, \ldots, L\), the random variables \(y_{i}^{\text{lab}}, y_{i}^{\text{ord}}, y_{i}^{\text{pos}}\) and \(y_{i}^{\text{morph}}\) are mutually independent conditional on \(y_{i}^{\text{arc}}\), \(y_{<i}\) and \(w\).
-    \end{assumption}
-    \pause
-    We can decompose the conditional probability of \(y\) given \(w\):\footnote{For notational simplicity we have written \(p_{w}(\cdot) \equiv p(\cdot \mid w)\) and \(p_{w}(\cdot \mid \cdot) \equiv p(\cdot \mid \cdot, w)\).} \\[-1em]
+    \end{assumption}}
+    \uncover<6->{
+    We can decompose the conditional probability of \(y\) given \(w\):\footnote{For notational simplicity we have written \(p_{w}(\cdot) \equiv p(\cdot \mid w)\) and \(p_{w}(\cdot \mid \cdot) \equiv p(\cdot \mid \cdot, w)\).} \\[-1em]}
     \setlength{\abovedisplayskip}{0pt}
     \setlength{\belowdisplayskip}{0pt}
     \setlength{\abovedisplayshortskip}{0pt}
     \setlength{\belowdisplayshortskip}{0pt}
     \begin{align*}
-        p_{w}(y) &= \prod_{i=1}^{L} p_{w}(y_{i} \mid y_{<i}) \\[-0.5em]
-        \uncover<8->{&= \prod_{i=1}^{L} \Big\{ p_{w}(y_{i}^{\text{arc}} \mid y_{<i}) p_{w}(y_{i}^{\text{lab}} \mid y_{i}^{\text{arc}}, y_{<i}) \\[-2.5em]}
-        \uncover<8->{& \phantom{\ = \prod_{i=1}^{L} \Big\{} \cdot p_{w}(y_{i}^{\text{ord}} \mid y_{i}^{\text{arc}}, y_{<i}) p_{w}(y_{i}^{\text{pos}} \mid y_{i}^{\text{arc}}, y_{<i}) p_{w}(y_{i}^{\text{morph}} \mid y_{i}^{\text{arc}}, y_{<i}) \Big\}.}
+        \uncover<6->{p_{w}(y) &= \prod_{i=1}^{L} p_{w}(y_{i} \mid y_{<i}) \\[-0.5em]}
+        \uncover<7->{&= \prod_{i=1}^{L} \Big\{
+            \tikzmarknode{pterm1}{p_{w}(y_{i}^{\text{arc}} \mid y_{<i})}
+            \tikzmarknode{pterm2}{p_{w}(y_{i}^{\text{lab}} \mid y_{i}^{\text{arc}}, y_{<i})} \\[-2.5em]}
+        \uncover<7->{& \phantom{\ = \prod_{i=1}^{L} \Big\{} \cdot
+        \tikzmarknode{pterm3}{p_{w}(y_{i}^{\text{ord}} \mid y_{i}^{\text{arc}}, y_{<i})}
+        \tikzmarknode{pterm4}{p_{w}(y_{i}^{\text{pos}} \mid y_{i}^{\text{arc}}, y_{<i})}
+        \tikzmarknode{pterm5}{p_{w}(y_{i}^{\text{morph}} \mid y_{i}^{\text{arc}}, y_{<i})} \Big\}.}
     \end{align*}
+
+    \begin{tikzpicture}[remember picture, overlay]
+        \foreach \n in {1,2,3,4,5}
+        {
+            \begin{scope}[ocg={ref=pterm\n, status=invisible, opts={radiobtngrp=pterm}}]
+                \node[draw, opacity=0.2, fill=green, fit=(pterm\n), inner sep=0pt] {};
+            \end{scope}
+            \node[fit=(pterm\n), switch ocg=pterm\n] {};
+        }
+    \end{tikzpicture}
 \end{frame}
 
 \subsection{Sequence-to-sequence setup}
@@ -422,27 +435,235 @@
     \[
         \boldsymbol{\omega}_{i} = \mathbf{WordEmbed}(w_{i}) \oplus \mathbf{CharEmbed}(w_{i}) \oplus \mathbf{BertEmbed}(w_{i}).
     \]
-    \pause
-    \begin{itemize}[<+->]
+    \begin{itemize}
         \item \(\mathbf{WordEmbed}\) is a simple lookup table.
         \item \(\mathbf{CharEmbed}\) is implemented using a CNN á la \textcite{chiu2016named}.
         \item BERT model pre-trained on German text by \textcite{bert-base-german-cased}.
     \end{itemize}
-    \only<5->{
+    \uncover<2->{
     \textbf{Encoder}: feed embeddings through a multi-layer bi-directional LSTM with skip-connections and dropout:
     \[
-        \boldsymbol{e} = \qty(\boldsymbol{e}_{i})_{i = 0, \ldots, n} = \mathbf{BiLSTM}(\boldsymbol{\omega}).
+        \boldsymbol{e} = \qty(\boldsymbol{e}_{i})_{i = 0, \ldots, L} = \mathbf{BiLSTM}(\boldsymbol{\omega}).
     \]
+    (\(\boldsymbol{e}_{0}\) is the initial state and represents the root pseudo-node.)}
 
-    (\(\boldsymbol{e}_{0}\) represents the root pseudo-node.)}
-
-    \only<6->{
+    \uncover<3->{
     \textbf{Decoder}: feed embeddings through a single-layer uni-directional LSTM with dropout:
     \[
-        \boldsymbol{d} = \qty(\boldsymbol{d}_{i})_{i = 1, \ldots, n} = \mathbf{LSTM}(\boldsymbol{\omega}).
-    \]}
+        \boldsymbol{d} = \qty(\boldsymbol{d}_{i})_{i = 1, \ldots, L} = \mathbf{LSTM}(\qty(\vb{e}_{i})_{i=1, \ldots, L}).
+    \]
+    (the initial state of the decoder is the final state of the encoder.)}
 
 \end{frame}
+
+\subsection{Classification}
+\begin{frame}
+    \frametitle{Classification tasks: quadratic classifier}
+    \framesubtitle{Building on \textcite{dozat2016deep}.}
+    \begin{columns}[t,onlytextwidth]
+        \begin{column}[t]{0.52\textwidth}
+            \begin{itemize}[<+->]
+            \item Model conditional probabilities of \(y_{i}^{\text{lab}}\), \(y_{i}^{\text{ord}}\), \(y_{i}^{\text{pos}}\) and \(y_{i}^{\text{morph}}\).
+            \item Encoder and decoder are shared across tasks.
+            \end{itemize}%
+            \uncover<3->{
+            \textbf{Example:} part-of-speech classification.
+            \[
+                \boldsymbol{e}^{\text{pos}}_{i} = \mathbf{MLP}_{\text{enc}}^{\text{pos}}(\boldsymbol{e}_{i}); \quad \boldsymbol{d}^{\text{pos}}_{j} = \mathbf{MLP}_{\text{dec}}^{\text{pos}}(\boldsymbol{d}_{j}).
+            \]}
+            \begin{itemize}
+                \item<4-> Obtain class \textit{logits} \(\boldsymbol{v}_{i,j}^{\text{pos}}\):
+                    \begin{alignat*}{3}
+                        \boldsymbol{v}^{\text{pos}}_{i,j} &= \mathbf{Quad}^{\text{pos}}(\boldsymbol{e}^{\text{pos}}_{i}, \boldsymbol{d}^{\text{pos}}_{j})
+                    \end{alignat*}
+            \end{itemize}
+        \end{column}
+        \begin{column}[t]{0.48\textwidth}
+            \raggedleft\scalebox{0.67}{\begin{tikzpicture}[baseline={($(current bounding box.north) - (0, 1.5em)$)}]
+                \foreach \word / \n in {\texttt{root}/0, Darüber/1, muss/2, nachgedacht/3, werden/4, ./5}
+                {
+                    \node[
+                        shape=rectangle,
+                        inner sep=0pt,
+                        fill=none,
+                        text=black,
+                        anchor=north
+                    ] (wd\n) at (0.7 * \n, 0) {\rotatebox{-90}{\word}};
+                    \node[
+                        name=w\n,
+                        above=0.2cm of wd\n,
+                        text depth=0,
+                        text height=1em,
+                        inner sep=0
+                    ] {$w_{\n}$};
+                }
+        
+                \coordinate[above=0.5cm of w0.north west] (embedbl) {};
+                \coordinate[above=1cm of w5.north east] (embedtr) {};
+                \draw[semithick] (embedbl) rectangle (embedtr) node [pos=0.5,scale=0.95] {\(\scriptscriptstyle\mathbf{WordEmbed} \oplus \mathbf{CharEmbed} \oplus \mathbf{BertEmbed}\)};
+        
+                \foreach \n in {0,1,2,3,4,5}
+                {
+                    \draw[-Stealth] (w\n.north) -- (w\n|-embedbl);
+                    \node[
+                        above = 0.5cm of {w\n |-embedtr},
+                        draw,
+                        rectangle,
+                        semithick,
+                        inner sep=0,
+                        minimum width=0.4cm,
+                        minimum height=1cm,
+                        label={[scale=0.8]center:$\boldsymbol{e}_{\n}$}
+                    ] (e\n) {};
+                    \draw[-Stealth] (w\n |- embedtr) -- (e\n.south);
+                }
+        
+                \foreach \n/\m in {0/1,1/2,2/3,3/4,4/5}
+                {
+                    \draw[-Stealth] ($(e\n.east) + (0, 4pt)$) -- ($(e\m.west) + (0, 4pt)$) {};
+                    \draw[Stealth-] ($(e\n.east) - (0, 4pt)$) -- ($(e\m.west) - (0, 4pt)$) {};
+                }
+        
+                \foreach \n/\j in {0/1,1/2,2/3,3/4,4/5}{
+                    \node[
+                        draw,
+                        rectangle,
+                        semithick,
+                        inner sep=0,
+                        minimum width=0.4cm,
+                        minimum height=1cm,
+                        label={[scale=0.8]center:$\boldsymbol{d}_{\j}$}
+                    ] (d\j) at ($(e5) + (1 + 0.7 * \n, 0)$) {};
+                }
+        
+                \draw[-Stealth] (e5) -- (d1);
+        
+                \foreach \n/\m in {1/2,2/3,3/4,4/5}
+                {
+                    \draw[-Stealth] (d\n) -- (d\m) {};
+                }
+                \foreach \word/\j in {Darüber/1,muss/2,nachgedacht/3,werden/4,./5}
+                {
+                    \node[
+                        anchor=north,
+                        text depth=0,
+                        text height=1em,
+                        inner sep=0
+                    ] (ecopy\j) at (d\j |- embedtr.north) {$\boldsymbol{e}_{\j}$} edge[-Stealth] (d\j);
+                    \node[
+                        shape=rectangle,
+                        inner sep=0pt,
+                        fill=none,
+                        text=black,
+                        anchor=north
+                    ] (wdcopy\j) at (wd\j.north -| ecopy\j) {\rotatebox{-90}{(\word)}};
+                }
+        
+                \foreach \n in {1,2,3,4,5}
+                {
+                    \draw[-Stealth] (w\n |- embedtr) -- (e\n.south) node[midway, right, scale=0.8] {\(\boldsymbol{\omega}_{\n}\)};
+                }
+        
+                \coordinate[above=0.5cm of e0.north west] (mlpencbl) {};
+                \coordinate[above=0.9cm of e5.north east] (mlpenctr) {};
+                \draw[semithick] (mlpencbl) rectangle (mlpenctr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\text{enc}}^{\text{pos}}\)};
+        
+                \coordinate[above=0.5cm of d1.north west] (mlpdecbl) {};
+                \coordinate[above=0.9cm of d5.north east] (mlpdectr) {};
+                \draw[semithick] (mlpdecbl) rectangle (mlpdectr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\text{dec}}^{\text{pos}}\)};
+        
+                \foreach \i in {0,1,2,3,4,5}
+                {
+                    \draw[-Stealth] (e\i.north) -- (e\i |- mlpencbl);
+                }
+        
+                \coordinate[above=0.5cm of {mlpdecbl |- mlpdectr}] (biafbl) {};
+                \coordinate[above=0.4cm of {biafbl -| mlpdectr}] (biaftr) {};
+                \draw[semithick] (biafbl) rectangle (biaftr) node [pos=0.5,scale=0.8] (biaf) {\(\mathbf{Quad}^{\text{pos}}\)};
+                \foreach \i in {0,1,2,3,4,5}
+                {
+                    \draw (e\i.north |- mlpenctr) -- (e\i |- biaf);
+                }
+                \draw[-Stealth] (e0.north |- biaf) -- (biaf.west -| biafbl);
+        
+                \foreach \j in {1,2,3,4,5}
+                {
+                    \draw[-Stealth] (d\j.north) -- (d\j |- mlpdecbl);
+                    \draw[-Stealth] (d\j |- mlpdectr) -- (d\j |- biafbl);
+                }
+        
+                \foreach \j in {1,2,3,4,5}
+                {
+                    \coordinate (start\j) at (d\j |- {$(biaftr) + (0, 0.5cm)$});
+                    \foreach \k/\o in {5/0.1,4/0.3,3/0.5,2/0.7,1/0.9}
+                        {
+                            \node[
+                                draw,
+                                draw opacity=\o,
+                                rectangle,
+                                semithick,
+                                inner sep=0,
+                                minimum width=0.6cm,
+                                minimum height=1cm,
+                                anchor=south,
+                                fill=white
+                            ] (hello) at ($(start\j) + (0.02 * \k, 0.045 * \k)$) {};
+                        }
+                    \node[
+                        draw,
+                        anchor=south,
+                        rectangle,
+                        semithick,
+                        inner sep=0,
+                        minimum width=0.6cm,
+                        minimum height=1cm,
+                        fill=white,
+                        label={[scale=0.8]center:$\boldsymbol{v}^{\text{pos}}_{:,\j}$},
+                    ] (posclass\j) at (start\j) {} edge[Stealth-] (d\j |- biaftr);
+                }
+
+                \uncover<1|handout:0>{\node[draw, fill=green, opacity=0.2, fit=(wdcopy3) (e0) (d5)] {};}
+
+                \uncover<3|handout:0>{\node[draw, fill=green, opacity=0.2, fit=(mlpencbl) (mlpdectr)] {};}
+                \uncover<4|handout:0>{\node[draw, fill=green, opacity=0.2, fit=(biafbl) (biaftr)] {};}
+            \end{tikzpicture}}
+        \end{column}
+    \end{columns}%
+    \vspace{-2em}%
+    \begin{align*}
+        \uncover<4->{\coloneqq \tikzmarknode{QUADPOSA}{{\boldsymbol{e}^{\text{pos}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\text{pos}} \boldsymbol{d}_{j}^{\text{pos}}} +
+        \tikzmarknode{INOV1}{{\boldsymbol{e}_{i}^{\text{pos}}}\tran \mathbf{U}_{\text{h-h}}^{\text{pos}} \boldsymbol{e}_{i}^{\text{pos}}} + \tikzmarknode{QUADPOSB}{U_{\text{h}}^{\text{pos}} \boldsymbol{e}_{i}^{\text{pos}}} + \tikzmarknode{INOV2}{{\boldsymbol{d}_{j}^{\text{pos}}}\tran \mathbf{U}_{\text{d-d}}^{\text{pos}} \boldsymbol{d}_{j}^{\text{pos}}} + \tikzmarknode{QUADPOSC}{U_{\text{d}}^{\text{pos}} \boldsymbol{d}_{j}^{\text{pos}}} + \tikzmarknode{QUADPOSD}{\boldsymbol{u}_{\text{bias}}^{\text{pos}}.}}
+    \end{align*}
+
+    \uncover<5->{Fixing child \(w_{j}\), the vector \(\mathbf{softmax}(\boldsymbol{v}_{i,j}^{\text{pos}})\) can be interpreted as a probability distribution over its parts of speech conditional on having an arc to \(w_{i}\):
+                \[
+                    p^{\text{pos}}(c \mid w_{i}, y_{<j}, w) = \mathbf{softmax}(\boldsymbol{v}^{\text{pos}}_{i,j})_{c}.
+                \]}
+
+    \begin{tikzpicture}[remember picture, overlay]
+        \begin{scope}[ocg={ref=QUADPOSA, status=invisible, opts={radiobtngrp=QUADPOS}}]
+            \node[draw, fit=(QUADPOSA), fill=red, opacity=0.2] {};
+        \end{scope}
+        \begin{scope}[ocg={ref=QUADPOSB, status=invisible, opts={radiobtngrp=QUADPOS}}]
+            \node[draw, fit=(QUADPOSB) (INOV1), fill=red, opacity=0.2] {};
+        \end{scope}
+        \begin{scope}[ocg={ref=QUADPOSC, status=invisible, opts={radiobtngrp=QUADPOS}}]
+            \node[draw, fit=(QUADPOSC) (INOV2), fill=red, opacity=0.2] {};
+        \end{scope}
+        \begin{scope}[ocg={ref=QUADPOSD, status=invisible, opts={radiobtngrp=QUADPOS}}]
+            \node[draw, fit=(QUADPOSD), fill=red, opacity=0.2] {};
+        \end{scope}
+
+        \node[fit=(QUADPOSA), switch ocg=QUADPOSA] {};
+        \node[fit=(QUADPOSB) (INOV1), switch ocg=QUADPOSB] {};
+        \node[fit=(QUADPOSC) (INOV2), switch ocg=QUADPOSC] {};
+        \node[fit=(QUADPOSD), switch ocg=QUADPOSD] {};
+
+        \uncover<6>{\node[draw, fill=green, opacity=0.2, fit=(INOV1), inner sep=2pt] {};}
+        \uncover<6>{\node[draw, fill=green, opacity=0.2, fit=(INOV2), inner sep=2pt] {};}
+    \end{tikzpicture}
+\end{frame}
+
 
 \subsection{Attention}
 \begin{frame}
@@ -457,7 +678,7 @@
             \begin{itemize}
             \item<2-> Obtain dimension-reduced representations:
             \[
-                \boldsymbol{e}^{\text{arc}} = \mathbf{MLP}_{\text{enc}}^{\text{arc}}(\boldsymbol{e}); \quad \boldsymbol{d}^{\text{arc}} = \mathbf{MLP}_{\text{dec}}^{\text{arc}}(\boldsymbol{d}).
+                \boldsymbol{e}^{\text{arc}}_{i} = \mathbf{MLP}_{\text{enc}_{i}}^{\text{arc}}(\boldsymbol{e}_{i}); \quad \boldsymbol{d}^{\text{arc}}_{j} = \mathbf{MLP}_{\text{dec}}^{\text{arc}}(\boldsymbol{d}_{j}).
             \]
 
             \item<3-> Obtain \textit{latent features} \(\boldsymbol{v}_{i,j}^{\text{arc}}\):
@@ -605,10 +826,10 @@
 
 
 
-                \only<1>{\node[draw, fill=green, opacity=0.2, fit=(wdcopy3) (e0) (d5)] {};}
+                \uncover<1|handout:0>{\node[draw, fill=green, opacity=0.2, fit=(wdcopy3) (e0) (d5)] {};}
 
-                \only<2>{\node[draw, fill=green, opacity=0.2, fit=(mlpencbl) (mlpdectr)] {};}
-                \only<3>{\node[draw, fill=green, opacity=0.2, fit=(biafbl) (biaftr)] {};}
+                \uncover<2|handout:0>{\node[draw, fill=green, opacity=0.2, fit=(mlpencbl) (mlpdectr)] {};}
+                \uncover<3|handout:0>{\node[draw, fill=green, opacity=0.2, fit=(biafbl) (biaftr)] {};}
             \end{tikzpicture}}
         \end{column}
     \end{columns}%
@@ -620,8 +841,8 @@
     \end{itemize}
     
     \begin{tikzpicture}[remember picture, overlay]
-        \only<6>{\node[draw, fill=green, opacity=0.2, fit=(quad1) (quad2), inner sep=2pt] {};}
-        \only<6>{\node[draw, fill=green, opacity=0.2, fit=(tanh), inner sep=2pt] {};}
+        \uncover<6>{\node[draw, fill=green, opacity=0.2, fit=(quad1) (quad2), inner sep=2pt] {};}
+        \uncover<6>{\node[draw, fill=green, opacity=0.2, fit=(tanh), inner sep=2pt] {};}
         \begin{scope}[ocg={ref=QUADARCA, status=invisible, opts={radiobtngrp=QUADARC}}]
             \node[draw, fit=(QUADARCA), fill=red, opacity=0.2] {};
         \end{scope}
@@ -642,207 +863,6 @@
     \end{tikzpicture}
 \end{frame}
 
-\subsection{Classification}
-\begin{frame}
-    \frametitle{Classification tasks: quadratic classifier}
-    \framesubtitle{Building on \textcite{dozat2016deep}.}
-    \begin{columns}[t,onlytextwidth]
-        \begin{column}[t]{0.52\textwidth}
-            \begin{itemize}[<+->]
-            \item Encoder and decoder are shared across tasks. The remaining network is separately trained.
-            \item Classification via a quadratic layer allows modelling of class probabilities conditional on arcs.
-            \end{itemize}%
-            \only<3->{
-            \textbf{Example:} part-of-speech classification.
-            \[
-                \boldsymbol{e}^{\text{pos}} = \mathbf{MLP}_{\text{enc}}^{\text{pos}}(\boldsymbol{e}); \quad \boldsymbol{d}^{\text{pos}} = \mathbf{MLP}_{\text{dec}}^{\text{pos}}(\boldsymbol{d}).
-            \]}
-        \end{column}
-        \begin{column}[t]{0.48\textwidth}
-            \raggedleft\scalebox{0.67}{\begin{tikzpicture}[baseline=(current bounding box.north east)]
-                \foreach \word / \n in {\texttt{root}/0, Darüber/1, muss/2, nachgedacht/3, werden/4, ./5}
-                {
-                    \node[overlay,transparent,
-                        shape=rectangle,
-                        inner sep=0pt,
-                        fill=none,
-                        text=black,
-                        anchor=north
-                    ] (wd\n) at (0.7 * \n, 0) {\rotatebox{-90}{\word}};
-                    \node[overlay,transparent,
-                        name=w\n,
-                        above=0.2cm of wd\n,
-                        text depth=0,
-                        text height=1em,
-                        inner sep=0
-                    ] {$w_{\n}$};
-                }
-        
-                \coordinate[above=0.5cm of w0.north west] (embedbl) {};
-                \coordinate[above=1cm of w5.north east] (embedtr) {};
-                \draw[overlay,transparent,semithick] (embedbl) rectangle (embedtr) node [pos=0.5,scale=0.8] {\(\mathbf{WordEmbed} \oplus \mathbf{CharEmbed} \oplus \mathbf{BertEmbed}\)};
-        
-                \foreach \n in {0,1,2,3,4,5}
-                {
-                    \draw[overlay,transparent,-Stealth] (w\n.north) -- (w\n|-embedbl);
-                    \node[
-                        above = 0.5cm of {w\n |-embedtr},
-                        draw,
-                        rectangle,
-                        semithick,
-                        inner sep=0,
-                        minimum width=0.4cm,
-                        minimum height=1cm,
-                        label={[scale=0.8]center:$\boldsymbol{e}_{\n}$}
-                    ] (e\n) {};
-                    \draw[overlay,transparent,-Stealth] (w\n |- embedtr) -- (e\n.south);
-                }
-        
-                \foreach \n/\m in {0/1,1/2,2/3,3/4,4/5}
-                {
-                    \draw[-Stealth] ($(e\n.east) + (0, 4pt)$) -- ($(e\m.west) + (0, 4pt)$) {};
-                    \draw[Stealth-] ($(e\n.east) - (0, 4pt)$) -- ($(e\m.west) - (0, 4pt)$) {};
-                }
-        
-                \foreach \n/\j in {0/1,1/2,2/3,3/4,4/5}{
-                    \node[
-                        draw,
-                        rectangle,
-                        semithick,
-                        inner sep=0,
-                        minimum width=0.4cm,
-                        minimum height=1cm,
-                        label={[scale=0.8]center:$\boldsymbol{d}_{\j}$}
-                    ] (d\j) at ($(e5) + (1 + 0.7 * \n, 0)$) {};
-                }
-        
-                \draw[-Stealth] (e5) -- (d1);
-        
-                \foreach \n/\m in {1/2,2/3,3/4,4/5}
-                {
-                    \draw[-Stealth] (d\n) -- (d\m) {};
-                }
-                \foreach \word/\j in {Darüber/1,muss/2,nachgedacht/3,werden/4,./5}
-                {
-                    \node[
-                        anchor=north,
-                        text depth=0,
-                        text height=1em,
-                        inner sep=0
-                    ] (ecopy\j) at (d\j |- embedtr.north) {$\boldsymbol{e}_{\j}$} edge[-Stealth] (d\j);
-                    \node[overlay,transparent,
-                        shape=rectangle,
-                        inner sep=0pt,
-                        fill=none,
-                        text=black,
-                        anchor=north
-                    ] at (wd\j.north -| ecopy\j) {\rotatebox{-90}{(\word)}};
-                }
-        
-                \foreach \i in {1,2,3,4,5}
-                {
-                    \node[
-                        anchor=north,
-                        text depth=0,
-                        text height=1em,
-                        inner sep=0
-                    ] (omega\i) at (e\i |- embedtr.north) {$\boldsymbol{\omega}_{\i}$} edge[-Stealth] (e\i);
-                }
-        
-                \coordinate[above=0.5cm of e0.north west] (mlpencbl) {};
-                \coordinate[above=0.9cm of e5.north east] (mlpenctr) {};
-                \draw[semithick] (mlpencbl) rectangle (mlpenctr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\text{enc}}^{\text{pos}}\)};
-        
-                \coordinate[above=0.5cm of d1.north west] (mlpdecbl) {};
-                \coordinate[above=0.9cm of d5.north east] (mlpdectr) {};
-                \draw[semithick] (mlpdecbl) rectangle (mlpdectr) node [pos=0.5,scale=0.8] {\(\mathbf{MLP}_{\text{dec}}^{\text{pos}}\)};
-        
-                \foreach \i in {0,1,2,3,4,5}
-                {
-                    \draw[-Stealth] (e\i.north) -- (e\i |- mlpencbl);
-                }
-        
-                \coordinate[above=0.5cm of {mlpdecbl |- mlpdectr}] (biafbl) {};
-                \coordinate[above=0.4cm of {biafbl -| mlpdectr}] (biaftr) {};
-                \draw[semithick] (biafbl) rectangle (biaftr) node [pos=0.5,scale=0.8] (biaf) {\(\mathbf{Quad}^{\text{pos}}\)};
-                \foreach \i in {0,1,2,3,4,5}
-                {
-                    \draw (e\i.north |- mlpenctr) -- (e\i |- biaf);
-                }
-                \draw[-Stealth] (e0.north |- biaf) -- (biaf.west -| biafbl);
-        
-                \foreach \j in {1,2,3,4,5}
-                {
-                    \draw[-Stealth] (d\j.north) -- (d\j |- mlpdecbl);
-                    \draw[-Stealth] (d\j |- mlpdectr) -- (d\j |- biafbl);
-                }
-        
-                \foreach \j in {1,2,3,4,5}
-                {
-                    \coordinate (start\j) at (d\j |- {$(biaftr) + (0, 0.5cm)$});
-                    \foreach \k/\o in {5/0.1,4/0.3,3/0.5,2/0.7,1/0.9}
-                        {
-                            \node[
-                                draw,
-                                draw opacity=\o,
-                                rectangle,
-                                semithick,
-                                inner sep=0,
-                                minimum width=0.6cm,
-                                minimum height=1cm,
-                                anchor=south,
-                                fill=white
-                            ] (hello) at ($(start\j) + (0.02 * \k, 0.045 * \k)$) {};
-                        }
-                    \node[
-                        draw,
-                        anchor=south,
-                        rectangle,
-                        semithick,
-                        inner sep=0,
-                        minimum width=0.6cm,
-                        minimum height=1cm,
-                        fill=white,
-                        label={[scale=0.8]center:$\boldsymbol{v}^{\text{pos}}_{:,\j}$},
-                    ] (posclass\j) at (start\j) {} edge[Stealth-] (d\j |- biaftr);
-                }
-            \end{tikzpicture}}
-        \end{column}
-    \end{columns}
-    \begin{itemize}
-        \item<4-> Obtain class \textit{logits} \(\boldsymbol{v}_{i,j}^{\text{pos}}\):
-            \begin{alignat*}{3}
-                \boldsymbol{v}^{\text{pos}}_{i,j} &= \mathbf{Quad}^{\text{pos}}(\boldsymbol{e}^{\text{pos}}_{i}, \boldsymbol{d}^{\text{pos}}_{j}) \\
-                &\coloneqq \tikzmarknode{QUADPOSA}{{\boldsymbol{e}^{\text{pos}}_{i}}\tran \mathbf{U}_{\text{h-d}}^{\text{pos}} \boldsymbol{d}_{j}^{\text{pos}}} +
-                \tikzmarknode{QUADPOSB}{{\boldsymbol{e}_{i}^{\text{pos}}}\tran \mathbf{U}_{\text{h-h}}^{\text{pos}} \boldsymbol{e}_{i}^{\text{pos}} + U_{\text{h}}^{\text{pos}} \boldsymbol{e}_{i}^{\text{pos}}} \\
-                    &\phantom{\coloneqq}\ + \tikzmarknode{QUADPOSC}{{\boldsymbol{d}_{j}^{\text{pos}}}\tran \mathbf{U}_{\text{d-d}}^{\text{pos}} \boldsymbol{d}_{j}^{\text{pos}} + U_{\text{d}}^{\text{pos}} \boldsymbol{d}_{j}^{\text{pos}}} + \tikzmarknode{QUADPOSD}{\boldsymbol{u}_{\text{bias}}^{\text{pos}}.}
-            \end{alignat*}
-        \item<5-> Fixing child \(w_{j}\), the vector \(\mathbf{softmax}(\boldsymbol{v}_{i,j}^{\text{pos}})\) can be interpreted as a probability distribution over its parts of speech conditional on having an arc to \(w_{i}\):
-        \[
-            p^{\text{pos}}(c \mid w_{i}, y_{<j}, w) = \mathbf{softmax}(\boldsymbol{v}^{\text{pos}}_{i,j})_{c}.
-        \]
-    \end{itemize}
-
-    \begin{tikzpicture}[remember picture, overlay]
-        \begin{scope}[ocg={ref=QUADPOSA, status=invisible, opts={radiobtngrp=QUADPOS}}]
-            \node[draw, fit=(QUADPOSA), fill=red, opacity=0.2] {};
-        \end{scope}
-        \begin{scope}[ocg={ref=QUADPOSB, status=invisible, opts={radiobtngrp=QUADPOS}}]
-            \node[draw, fit=(QUADPOSB), fill=red, opacity=0.2] {};
-        \end{scope}
-        \begin{scope}[ocg={ref=QUADPOSC, status=invisible, opts={radiobtngrp=QUADPOS}}]
-            \node[draw, fit=(QUADPOSC), fill=red, opacity=0.2] {};
-        \end{scope}
-        \begin{scope}[ocg={ref=QUADPOSD, status=invisible, opts={radiobtngrp=QUADPOS}}]
-            \node[draw, fit=(QUADPOSD), fill=red, opacity=0.2] {};
-        \end{scope}
-
-        \node[fit=(QUADPOSA), switch ocg=QUADPOSA] {};
-        \node[fit=(QUADPOSB), switch ocg=QUADPOSB] {};
-        \node[fit=(QUADPOSC), switch ocg=QUADPOSC] {};
-        \node[fit=(QUADPOSD), switch ocg=QUADPOSD] {};
-    \end{tikzpicture}
-\end{frame}
 
 \subsection{Inference and Training}
 \begin{frame}
@@ -854,9 +874,9 @@
     \begin{block}{Training}
         We find \(\hat{p}\) using \textit{SGD} with \textit{Nesterov momentum}, finding a suitably low \textit{cross-entropy} between the model \(p\) and the empirical distribution present in the dataset \((w^{n}, y^{n})_{n=1}^{N}\):
         \begin{align*}
-            \uncover<2->{& \phantom{\mathrel{=}}\ - \sum_{n=1}^{N} \log \prod_{i=1}^{L_{n}} \Big\{ p_{w}({y_{i}^{n}}^{\text{arc}} \mid y_{<i}^{n}) p_{w}({y_{i}^{n}}^{\text{lab}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) p_{w}({y_{i}^{n}}^{\text{ord}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \\[-2.75em]
-            & \phantom{\mathrel{=}\ - \sum_{n=1}^{N} \log \prod_{i=1}^{L_{n}} \Big\{} \cdot p_{w}({y_{i}^{n}}^{\text{pos}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) p_{w}({y_{i}^{n}}^{\text{morph}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \\}
-            \uncover<3->{&= \mathop{\underset{ p}{\min}} \qty{\text{loss}^{\text{arc}} + \text{loss}^{\text{lab}} + \text{loss}^{\text{ord}} + \text{loss}^{\text{pos}} + \text{loss}^{\text{morph}}}.}
+            \uncover<2->{& \phantom{\mathrel{=}}\ - \frac{1}{N} \sum_{n=1}^{N} \log \prod_{i=1}^{L_{n}} \Big\{ p_{w}({y_{i}^{n}}^{\text{arc}} \mid y_{<i}^{n}) p_{w}({y_{i}^{n}}^{\text{lab}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) p_{w}({y_{i}^{n}}^{\text{ord}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \\[-2.75em]
+            & \phantom{\mathrel{=}\ - \sum_{n=1}^{N} \log \prod_{i=1}^{L_{n}} \Big\{} \cdot p_{w}({y_{i}^{n}}^{\text{pos}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) p_{w}({y_{i}^{n}}^{\text{morph}} \mid {y_{i}^{n}}^{\text{arc}}, y_{<i}^{n}) \Big\} \\}
+            \uncover<3->{&= \text{loss}^{\text{arc}} + \text{loss}^{\text{lab}} + \text{loss}^{\text{ord}} + \text{loss}^{\text{pos}} + \text{loss}^{\text{morph}}.}
         \end{align*}
     \end{block}
 
@@ -868,7 +888,7 @@
         \end{align*}
     \end{block}
 
-    \only<5->{The feasible region is very large, so the maximisation is approximated via \textit{beam search}.}
+    \uncover<5->{The feasible region is very large, so the maximisation is approximated via \textit{beam search}.}
 \end{frame}
 
 \section{Data and Results}
@@ -947,23 +967,29 @@
 \section{Mathematical justification for quadratic classifier}
 \begin{frame}
     \frametitle{Appendix: Mathematical justification for quadratic classifier}
-    Notation has been simplified for presentational clarity. Take a single class \(c\) and suppose
+    % \setlength{\abovedisplayskip}{0pt}
+    % \setlength{\belowdisplayskip}{0pt}
+    \setlength{\abovedisplayshortskip}{0pt}
+    \setlength{\belowdisplayshortskip}{0pt}
+    Notation has been simplified for presentational clarity. Single \(c\)  is multinoulli and
     \[
-        \mqty[\boldsymbol{e}_{i} \\ \boldsymbol{d}_{j}] \, \Big| \, c \sim \mathcal{N}\qty(\mqty[\boldsymbol{\mu}_{c} \\ \boldsymbol{\phi}_{c}], \mqty[A_{c} & Q_{c} \tran \\ Q_{c} & B_{c}]^{-1}).
+        \mqty[\boldsymbol{e}_{i} \\ \boldsymbol{d}_{j}] \, \Big| \, c \sim \mathcal{N}\qty(\mqty[\boldsymbol{\mu}_{c} \\ \boldsymbol{\phi}_{c}], \mqty[A_{c} & Q_{c} \tran \\ Q_{c} & B_{c}]^{-1}) \implies \vb{d}_{j} \mid c \sim \mathcal{N}\qty(\boldsymbol{\phi}_{c}, P_{c}^{-1}).
     \]
     
-    \only<2->{The conditional log-probability of \(c\) is the following affine quadratic form:}
+    \uncover<2->{The conditional log-probability of \(c\) is the following affine quadratic form:}
     {\begin{align*}
-        \uncover<2->{&\phantom{=}\ \log p(c \mid \boldsymbol{e}_{i}, \boldsymbol{d}_{j}) = k_{c} -\frac{1}{2} \qty((\boldsymbol{e}_{i} - \boldsymbol{\mu}_{c}) + A_{c}^{-1} Q_{c}\tran(\boldsymbol{d}_{j} - \boldsymbol{\phi}_{c}))\tran A_{c}\qty((\boldsymbol{e}_{i} - \boldsymbol{\mu}_{c}) + A_{c}^{-1} Q_{c}\tran(\boldsymbol{d}_{j} - \boldsymbol{\phi}_{c})) \\}
+        \uncover<2->{&\phantom{=}\ \log p(c \mid \boldsymbol{e}_{i}, \boldsymbol{d}_{j}) = k_{c} -\frac{1}{2} \qty((\boldsymbol{e}_{i} - \boldsymbol{\mu}_{c}) + A_{c}^{-1} Q_{c}\tran(\boldsymbol{d}_{j} - \boldsymbol{\phi}_{c}))\tran A_{c}\qty((\boldsymbol{e}_{i} - \boldsymbol{\mu}_{c}) + A_{c}^{-1} Q_{c}\tran(\boldsymbol{d}_{j} - \boldsymbol{\phi}_{c})) \\[-0.5em]
+        &\qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \quad -\frac{1}{2}(\vb{d}_{j} - \boldsymbol{\phi}_{j})\tran P_{c}(\vb{d}_{j} - \boldsymbol{\phi}_{j}) - \log p(\vb{e}_{i}, \vb{d}_{j})\\}
         \uncover<3->{&= -\ \tikzmarknode{h-d-source}{\boldsymbol{e}_{i}\tran Q_{c} \tran\boldsymbol{d}_{j}}
             - \tikzmarknode{h-h-source}{\frac{1}{2} \boldsymbol{e}_{i}\tran A_{c}\boldsymbol{e}_{i}}
-            - \tikzmarknode{d-d-source}{\frac{1}{2} \boldsymbol{d}_{j}\tran Q_{c} A_{c}^{-1} Q_{c}\tran \boldsymbol{d}_{j}}
+            - \tikzmarknode{d-d-source}{\frac{1}{2} \boldsymbol{d}_{j}\tran (P_{c} + Q_{c} A_{c}^{-1} Q_{c}\tran) \boldsymbol{d}_{j}}
             + \tikzmarknode{h-source}{\qty(\boldsymbol{\mu}_{c}\tran A_{c} + \boldsymbol{\phi}_{c}\tran Q_{c})\boldsymbol{e}_{i}}
-            + \tikzmarknode{d-source}{(\boldsymbol{\phi}_{c}\tran Q_{c} A_{c}^{-1} Q_{c}\tran + \boldsymbol{\mu}_{c}\tran Q_{c}\tran)\boldsymbol{d}_{j}} \\
-             & \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \quad \tikzmarknode{bias-source-1}{- \boldsymbol{\mu}_{c}\tran Q_{c}\tran\boldsymbol{\phi}_{c}
-            -\frac{1}{2} \boldsymbol{\mu}_{c}\tran A_{c} \boldsymbol{\mu}_{c}} \\
-        & \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \quad \tikzmarknode{bias-source-2}{- \frac{1}{2} \boldsymbol{\phi}\tran Q_{c}A_{c}^{-1}Q_{c}\tran \boldsymbol{\phi}+ k_{c}} \\
-        & \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \quad \tikzmarknode{bias-source-3}{+ \log p(c, \vb{d}_{j}) - \log p(\vb{e}_{i}, \vb{d}_{j})} \\}
+             \\
+             & \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad + \tikzmarknode{d-source}{(\boldsymbol{\phi}_{c}\tran Q_{c} A_{c}^{-1} Q_{c}\tran \boldsymbol{\phi}\tran P_{c} + \boldsymbol{\mu}_{c}\tran Q_{c}\tran)\boldsymbol{d}_{j}} \\
+             & \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \quad \tikzmarknode{bias-source-1}{- \boldsymbol{\mu}_{c}\tran Q_{c}\tran\boldsymbol{\phi}_{c}
+            -\frac{1}{2} \boldsymbol{\mu}_{c}\tran A_{c} \boldsymbol{\mu}_{c}} \\[-0.5em]
+        & \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \quad \tikzmarknode{bias-source-2}{- \frac{1}{2} \boldsymbol{\phi}\tran (P_{c} + Q_{c}A_{c}^{-1}Q_{c}\tran) \boldsymbol{\phi}+ k_{c}} \\
+        & \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \qquad \tikzmarknode{bias-source-3}{- \log p(\vb{e}_{i}, \vb{d}_{j})} \\}
         \uncover<4->{&= c\text{th row of }
         \tikzmarknode{h-d-dest}{\boldsymbol{e}_{i}\tran \mathbf{U}_{\text{h-d}} \boldsymbol{d}_{j}}
            + \tikzmarknode{h-h-dest}{\boldsymbol{e}_{i}\tran \mathbf{U}_{\text{h-h} }\boldsymbol{e}_{i}}
@@ -974,17 +1000,23 @@
     \end{align*}
     }%
 
-    \only<5->{\begin{tikzpicture}[remember picture, overlay]
-        \foreach \n in {h-d,h-h,d-d,h}
+    \uncover<5->{\begin{tikzpicture}[remember picture, overlay]
+        \foreach \n in {h-d,h-h,d-d}
         {
             \node [draw, fill=green, opacity=0.2, fit=(\n-source), inner sep=1pt] (highlight\n) {};
             \draw[-Stealth] (highlight\n)  -- (\n-dest);
         }
+        \node [draw, fill=green, opacity=0.2, fit=(h-source), inner sep=1pt] (highlighth) {};
+        \draw[-Stealth] (highlighth.south west)  -- (h-dest);
+
         \node [draw, fill=green, opacity=0.2, fit=(d-source), inner sep=1pt] (highlightd) {};
         \draw[-Stealth] (highlightd.south west)  -- (d-dest);
 
-        \node [draw, fill=green, opacity=0.2, fit=(bias-source-1) (bias-source-2) (bias-source-3), inner sep=1pt] (highlightbias) {};
+        \node [draw, fill=green, opacity=0.2, fit=(bias-source-1) (bias-source-2), inner sep=1pt] (highlightbias) {};
         \draw[-Stealth] (highlightbias)  -- (bias-dest);
+
+        \node [draw, fill=red, opacity=0.2, fit=(bias-source-3), inner sep=1pt] (highlightthrowaway) {};
+        \draw[-Stealth] (highlightthrowaway)  -- +(2em, -2em) node[align=center,anchor=north]{\shortstack{\tiny constant in \(c\)\\ \tiny so throw away}};
 
         % \node [draw, fill=green, opacity=0.2, fit=(d-source), inner sep=1pt] (highlightd) {};        
 
@@ -998,10 +1030,9 @@
 
         % \draw[-Stealth] plot [smooth, tension=0.7] coordinates { (highlightd.south west) (c1) (c2 -| before-bias-source) ($(before-bias-source.west) - (0.5ex, 0)$) (d-dest.north)};
     \end{tikzpicture}}
-
-    \only<6->{\textbf{Memory-efficient implementation:} under conditional normality, the affine quadratic transformation can be computed as
+    \uncover<6->{\textbf{Memory-efficient implementation:} assuming conditional normality:
     \[
-        v_{i,j}^{c} = k^{c} + \norm{W_{h}^{c} \boldsymbol{e}_{i} + W_{d}^{c}\boldsymbol{d}_{j} + \boldsymbol{w}^{c}}_{2}^{2}.
+        v_{i,j}^{c} = k^{c} - \norm{W_{1}^{c} \boldsymbol{e}_{i} + W_{2}^{c}\boldsymbol{d}_{j} + \boldsymbol{w}_{3}^{c}}_{2}^{2}.
     \]}
 \end{frame}
 

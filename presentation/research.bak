@@ -3,20 +3,13 @@ anki:
   deck: cramming
 ...
 
-limitations:
-{
-  1. unaries
-  2. beam search naive/uninformed -- add more heuristics
-  3. slow
-}
-
-:: ##1705232473625
+::
   applications: 
   {
   1. open domain information extraction (extracting structured data from unstructured data, e.g. relational triples (subject, relation, object))
   2. embeddings
   }
-
+  
 **Angeli et al (2015)** use a d-parser to {find clauses. It then applies natural logic to validate deletions and produce subclauses useful for downstream applications}. ##1705231643883
 
 Natural logic as a formalism captures {common logical inferences appealing directly to the form of language, rather than parsing to a spe- cialized logical syntax. E.g. "all" induces downward polarity; "some" induces upward polarity. "All rabbits eat vegetables}" ##1705231643960
@@ -529,29 +522,3 @@ Note (Adam). ##1705231643808
 : Accumulates velocity and square gradients separately before updates. Applies a bias correction so learning rate are not tiny at the beginning. No Nesterov.
 
   ![ ](figures/2024-01-12-15-47-29.png)
-
-
-Note (LSTM).
-: Problem with RNN: signals become lost in forward prop; gradients vanish in backprop.
-
-  LSTM: cell state that can retain information over time and these self-connections are regulated by gates
-  - input gate (how much cell state is affected by new input)
-  - forget gate (how much cell state should be retained)
-  - output gate (output of a cell can be shut off)
-
-  Problem with LSTM: sequential
-
-Note (transformer).
-: 1. encoder:
-     - embeddings + positional encoding (sine + cosine)
-     - mutli-headed self-attention
-       - multiple query, key, value derived from input
-       - query and key get attention
-       - attention times values gets output values
-     - residual connections + MPL
-  1. decoder:
-     - first multi-headed attention you feed in decoded outputs
-       - look-ahead masking to prevent attending to future outputs
-     - feed in these outputs as values to the second multi-headeed attention
-       - queries and keys are encoder outputs
-     - MLP+layernorm+classification layer

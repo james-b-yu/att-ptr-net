@@ -1,14 +1,14 @@
 \babel@toc {british}{}\relax 
 \beamer@sectionintoc {1}{Introduction}{2}{0}{1}
 \beamer@subsectionintoc {1}{1}{Motivation}{2}{0}{1}
-\beamer@subsectionintoc {1}{2}{Preliminaries}{8}{0}{1}
-\beamer@sectionintoc {2}{Model}{12}{0}{2}
-\beamer@subsectionintoc {2}{1}{Mathematical Formulation}{12}{0}{2}
-\beamer@subsectionintoc {2}{2}{Sequence-to-sequence setup}{20}{0}{2}
-\beamer@subsectionintoc {2}{3}{Attention}{26}{0}{2}
-\beamer@subsectionintoc {2}{4}{Classification}{32}{0}{2}
-\beamer@subsectionintoc {2}{5}{Inference and Training}{37}{0}{2}
-\beamer@sectionintoc {3}{Data and Results}{42}{0}{3}
-\beamer@sectionintoc {4}{Appendix}{49}{0}{4}
-\beamer@sectionintoc {5}{Mathematical justification for quadratic classifier}{49}{1}{5}
-\beamer@sectionintoc {6}{Bibliography}{55}{1}{6}
+\beamer@subsectionintoc {1}{2}{Preliminaries}{3}{0}{1}
+\beamer@sectionintoc {2}{Model}{5}{0}{2}
+\beamer@subsectionintoc {2}{1}{Mathematical Formulation}{5}{0}{2}
+\beamer@subsectionintoc {2}{2}{Sequence-to-sequence setup}{6}{0}{2}
+\beamer@subsectionintoc {2}{3}{Classification}{7}{0}{2}
+\beamer@subsectionintoc {2}{4}{Attention}{8}{0}{2}
+\beamer@subsectionintoc {2}{5}{Inference and Training}{9}{0}{2}
+\beamer@sectionintoc {3}{Data and Results}{10}{0}{3}
+\beamer@sectionintoc {4}{Appendix}{11}{0}{4}
+\beamer@sectionintoc {5}{Mathematical justification for quadratic classifier}{11}{1}{5}
+\beamer@sectionintoc {6}{Bibliography}{12}{1}{6}
